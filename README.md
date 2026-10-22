@@ -37,23 +37,26 @@ Không mở `dist/index.html` bằng `file://`; cần web server. Giao diện đ
 - **Cấu hình lương:** ngày công chuẩn, giờ/ngày, hệ số tăng ca, tỷ lệ bảo hiểm, danh mục phụ cấp và mức mặc định.
 - **Bảng lương:** công thức thu nhập/thực lĩnh rõ ràng; thưởng, tạm ứng, khấu trừ, thuế nhập tay; chi tiết lương, CSV, chốt tháng giữ nguyên lịch sử và mở lại có xác nhận.
 - **Dữ liệu:** CSV để mở trong Sheets/Excel, sao lưu/khôi phục JSON được kiểm tra, đặt lại dữ liệu mẫu có xác nhận.
-- **Supabase tùy chọn:** đăng nhập một chủ xưởng, tải/lưu snapshot thủ công, owner-only RLS và kiểm tra revision chống ghi đè cloud. Cần cấu hình và kiểm thử trên tài khoản thật.
+- **Google Sheets:** kết nối qua Apps Script và khóa riêng; tải/lưu thủ công giữa thiết bị, kiểm tra phiên bản chống ghi đè, giữ đầy đủ chấm công và kỳ lương đã chốt. Sheet vẫn riêng tư; có các tab báo cáo để xem. Cần thiết lập theo [hướng dẫn](docs/GOOGLE_SHEETS.md).
+- **Supabase tùy chọn:** giữ bộ kết nối cũ cho môi trường đã cấu hình; không cần dùng khi chọn Google Sheets.
 
 Các nút thao tác cập nhật dữ liệu thực trong demo. Số phần trăm ở danh sách đơn phản ánh **mốc công đoạn**, còn số chi tiết hoàn thành theo dõi riêng ở chi tiết/bảng sản xuất. Kho chưa tự trừ theo định mức đơn hàng. Một đơn hiện có một dòng chi tiết. Tên, thông tin liên hệ và số liệu seed là giả lập.
 
 Đây chưa phải ERP/kế toán hoàn chỉnh: chưa có phân quyền nhân viên, lịch máy hữu hạn, QC theo tiêu chí, xuất PDF báo giá, tệp bản vẽ, gia công ngoài, hóa đơn VAT, nhật ký phiếu thu, sổ chi, giá thành hoặc lợi nhuận. Responsive không đồng nghĩa app offline/PWA.
 
-## Lưu dữ liệu: đề xuất
+## Lưu dữ liệu bằng Google Sheets
 
 **Demo:** localStorage, không mất tiền/không cần tài khoản; không tự đồng bộ giữa điện thoại và máy tính. Nên xuất JSON trước khi xóa bộ nhớ trình duyệt. JSON khôi phục đầy đủ; CSV xuất riêng danh sách đơn hàng hoặc bảng lương của tháng được chọn.
 
-**Thử dữ liệu thật:** đề xuất Supabase Free hơn Sheets vì có Auth, PostgreSQL và Row Level Security. Bản tích hợp hiện là kho riêng một tài khoản, dùng cùng tài khoản trên nhiều thiết bị; không phải hệ thống nhân viên phân quyền. Đồng bộ cần bấm tải/lưu, chưa realtime. Hướng dẫn tại [docs/SUPABASE.md](docs/SUPABASE.md).
+**Lựa chọn hiện tại: Google Sheets + Apps Script.** Tạo một Sheet mới, chạy `setup()` trong script của bạn, triển khai Web App rồi nhập URL `/exec` và khóa trong Cài đặt. Không cần Supabase hoặc thẻ thanh toán. Khóa không nằm trong mã nguồn và không được ứng dụng lưu trong localStorage/sessionStorage. Các thiết bị dùng cùng khóa có quyền đọc/ghi toàn bộ dữ liệu, gồm lương; chưa có quyền riêng từng nhân viên. Bản lưu cục bộ vẫn còn sau khi ngắt kết nối.
 
-Google Sheets quen thuộc nhưng frontend công khai không được chứa service-account/private key. Một kết nối ghi an toàn cần OAuth/quyền truy cập và xử lý ghi đồng thời; endpoint Apps Script công khai không phải giải pháp bảo mật. Nghiên cứu, so sánh và nguồn chính thức tại [docs/RESEARCH.md](docs/RESEARCH.md).
+Đồng bộ thủ công, có khóa phía máy chủ và kiểm tra revision. Khi xung đột hoặc chưa biết kết quả ghi vì mất mạng, cần sao lưu JSON rồi tải bản mới trước khi lưu tiếp. Giới hạn pilot 2 MiB JSON mỗi snapshot; không lưu ảnh/bản vẽ trong snapshot. Sửa dữ liệu trong ứng dụng, không sửa trực tiếp tab báo cáo để nhập ngược. Hướng dẫn: [docs/GOOGLE_SHEETS.md](docs/GOOGLE_SHEETS.md). Kết nối trên Google thật còn cần triển khai và nghiệm thu bằng tài khoản của bạn.
+
+Bộ kết nối Supabase trước đây vẫn có trong mã nguồn, xem [docs/SUPABASE.md](docs/SUPABASE.md); đây là lựa chọn thay thế, không cần cấu hình cho Google Sheets.
 
 ## Đưa demo lên GitHub Pages
 
-GitHub Pages chỉ dùng cho **demo dữ liệu giả** trong cấu hình này. Workflow ép `VITE_DEMO_ONLY=true`, kể cả khi Pages dùng tên miền riêng. Không thêm khóa hoặc mật khẩu vào GitHub repository. Chính sách Pages có giới hạn cho kinh doanh/giao dịch nhạy cảm; đọc [nghiên cứu](docs/RESEARCH.md) trước khi chọn hosting vận hành thật.
+GitHub Pages dùng cho **demo dữ liệu giả**, có thể kết nối một Google Sheet demo để thử đồng bộ. Workflow đặt `VITE_DEMO_ONLY=true` để tắt bộ kết nối Supabase và giao diện nhắc dùng dữ liệu giả. Không thêm khóa hoặc mật khẩu vào GitHub repository. Chính sách Pages có giới hạn cho kinh doanh/giao dịch nhạy cảm; đọc [nghiên cứu](docs/RESEARCH.md) trước khi chọn hosting vận hành thật.
 
 1. Tạo repository trên GitHub. Với GitHub Free, dùng repository public để có Pages miễn phí.
 2. Đẩy toàn bộ mã nguồn (không đẩy `node_modules`, `.env`, `dist`) lên nhánh `main`:
@@ -84,11 +87,12 @@ npx playwright test
 npm run verify:dist
 ```
 
-41 unit tests kiểm tra nghiệp vụ, tính lương, dữ liệu nhập, kho, UUID qua HTTP LAN và lưu trữ. 22 Playwright cases kiểm tra luồng dùng thật trên desktop/điện thoại. `verify:dist` kiểm tra bản build dưới đường dẫn repository, tải phân hệ lương và chụp ảnh sáng/tối. Các kiểm tra cloud/RLS trên Supabase thật cần tài khoản hạ tầng riêng, không được xem là đã chạy chỉ vì có schema SQL.
+80 unit tests kiểm tra nghiệp vụ, lương, lưu trữ, bộ kết nối Sheets và Apps Script giả lập. 34 Playwright cases kiểm tra desktop/điện thoại, gồm 12 trường hợp Sheets với HTTP mô phỏng. `verify:dist` kiểm tra bản build dưới đường dẫn repository và chụp ảnh sáng/tối. `verify:apps-script` kiểm tra mã triển khai khớp bộ kiểm tra nghiệp vụ. Google Apps Script thật và Supabase thật chưa được kiểm thử vì chưa có tài khoản/endpoint được cấu hình.
 
 ## Tài liệu
 
 - [Nghiên cứu và lựa chọn nền tảng](docs/RESEARCH.md)
+- [Thiết lập Google Sheets và cách đồng bộ](docs/GOOGLE_SHEETS.md)
 - [Kế hoạch triển khai và kịch bản demo](docs/IMPLEMENTATION_PLAN.md)
 - [Cấu hình Supabase và kiểm tra quyền](docs/SUPABASE.md)
 - [Nhân sự, công thức lương và quy trình chốt tháng](docs/PAYROLL.md)

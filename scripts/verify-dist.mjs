@@ -42,6 +42,11 @@ try {
       await page.getByRole('tab', { name: 'Bảng lương', exact: true }).click();
       await page.screenshot({ path: `docs/previews/payroll-${device}-${theme}.png`, fullPage: true });
       if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) failures.push(`${device}/${theme}: payroll overflow`);
+      await page.goto(`http://127.0.0.1:${port}/workshop-demo/#settings`);
+      await page.getByRole('heading', { name: 'Kết nối Google Sheets', exact: true }).waitFor();
+      await page.getByRole('button', { name: 'Kết nối Google Sheets', exact: true }).waitFor();
+      await page.screenshot({ path: `docs/previews/sheets-${device}-${theme}.png`, fullPage: true, animations: 'disabled' });
+      if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) failures.push(`${device}/${theme}: sheets settings overflow`);
     }
     await page.close();
   }

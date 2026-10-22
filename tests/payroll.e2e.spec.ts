@@ -37,7 +37,7 @@ test('legacy backup keeps existing operations and opens an empty payroll workspa
   backup.customers[0].name = 'Khách giữ nguyên khi thêm nhân sự QA'
   page.once('dialog', dialog => dialog.accept())
   await page.locator('input[type=file]').setInputFiles({ name: 'legacy-backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) })
-  await expect(page.getByRole('status')).toContainText('Đã khôi phục dữ liệu')
+  await expect(page.locator('.toast')).toContainText('Đã khôi phục dữ liệu')
   await page.goto('/#payroll')
   await expect(page.getByRole('button', { name: 'Thêm nhân viên', exact: true })).toBeVisible()
   expect((await stored(page)).customers[0].name).toBe(backup.customers[0].name)

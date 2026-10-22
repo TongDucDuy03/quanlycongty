@@ -47,8 +47,10 @@ import {
   validateData,
 } from "./domain";
 import { createSeedData } from "./seed";
+import SheetsConnection from "./SheetsConnection";
 import {
   cloudAllowed,
+  assertLocalDataCurrent,
   cloudConfigError,
   clearScopedData,
   downloadFile,
@@ -176,6 +178,9 @@ function ModalFrame({
 export default function App() {
   const [initial] = useState(loadData);
   const [data, setData] = useState(initial.data);
+  const currentDataRef = useRef(data);
+  currentDataRef.current = data;
+  const [sheetsStatus, setSheetsStatus] = useState("");
   const [page, setPage] = useState<Page>(readPage);
   const [theme, setTheme] = useState(() => {
     try {
@@ -650,11 +655,11 @@ export default function App() {
           <div className="top-actions">
             <span className="local-indicator">
               <i />
-              {cloudUser
+              {sheetsStatus || (cloudUser
                 ? dirty
                   ? "Đám mây · Chưa gửi thay đổi"
                   : "Đám mây · Đồng bộ thủ công"
-                : "Demo · Lưu trên máy"}
+                : "Demo · Lưu trên máy")}
             </span>
             <button
               className="icon-button"
@@ -1481,17 +1486,38 @@ export default function App() {
               />
             </Suspense>
           )}
-          {page === "settings" && (
+          <div hidden={page !== "settings"}>
             <div className="settings-grid">
+              <SheetsConnection
+                data={data}
+                disabled={Boolean(cloudUser)}
+                onStatus={setSheetsStatus}
+                beforeSave={() => {
+                  try {
+                    assertLocalDataCurrent(tokenRef.current, ownerRef.current || undefined);
+                    return true;
+                  } catch (error) {
+                    setNotice(error instanceof Error ? error.message : "Không đọc được bản lưu trên thiết bị.");
+                    return false;
+                  }
+                }}
+                onReplace={(next, expected) => {
+                  if (currentDataRef.current !== expected) {
+                    setNotice("Dữ liệu trên máy vừa thay đổi. Hãy sao lưu và tải lại từ Google Sheets.");
+                    return false;
+                  }
+                  return commit(next, "Đã tải dữ liệu từ Google Sheets");
+                }}
+              />
               <section className="card settings-card">
                 <span className="settings-icon">
                   <ShieldCheck />
                 </span>
-                <h2>Dữ liệu của bản demo</h2>
+                <h2>Bản lưu trên thiết bị</h2>
                 <p>
-                  Dữ liệu mẫu được lưu trên trình duyệt của thiết bị này. Điện
-                  thoại và máy tính chưa tự đồng bộ. Xóa dữ liệu trình duyệt sẽ
-                  xóa bản lưu.
+                  Thay đổi được lưu trên trình duyệt này. Khi kết nối Google
+                  Sheets, hãy bấm lưu để gửi thay đổi và tải để nhận dữ liệu
+                  trên thiết bị khác. Xóa dữ liệu trình duyệt sẽ xóa bản lưu cục bộ.
                 </p>
                 <div className="settings-status">
                   <span className="online-dot" /> {data.orders.length} đơn hàng
@@ -1558,15 +1584,14 @@ export default function App() {
                   Đặt lại dữ liệu mẫu
                 </button>
               </section>
-              <section className="card settings-card">
+              {supabase && <section className="card settings-card">
                 <span className="settings-icon blue">
                   <Factory />
                 </span>
                 <h2>Kết nối Supabase</h2>
                 <p>
-                  Lựa chọn đề xuất để lưu miễn phí và dùng cùng dữ liệu trên
-                  nhiều thiết bị. Bản tích hợp này dành cho một chủ xưởng; chưa
-                  có phân quyền nhân viên.
+                  Kết nối thay thế dành cho cấu hình Supabase đã có. Chỉ sử dụng
+                  một nơi đồng bộ trong cùng phiên làm việc.
                 </p>
                 {!cloudAllowed ? (
                   <div className="info-note">
@@ -1658,7 +1683,7 @@ export default function App() {
                     {cloudMessage}
                   </p>
                 )}
-              </section>
+              </section>}
               <section className="card settings-card wide">
                 <h2>Thử demo trong 3 phút</h2>
                 <div className="demo-steps">
@@ -1680,7 +1705,7 @@ export default function App() {
                 </div>
               </section>
             </div>
-          )}
+          </div>
           <footer className="page-footer">
             <span>
               <span className="brand-mini">XưởngViệt</span> · Rõ việc, vững tiến

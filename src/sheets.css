@@ -1,0 +1,21 @@
+.sheets-connection { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; color: var(--text); min-width: 0; }
+.sheets-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+.sheets-heading > svg { color: var(--green); flex: 0 0 auto; margin-top: 3px; }
+.sheets-heading h2 { font-size: 18px; margin: 0 0 6px; }
+.sheets-heading p, .sheets-help { color: var(--muted); line-height: 1.7; }
+.sheets-notice { padding: 14px 16px; border: 1px solid var(--border); background: var(--green-soft); border-radius: 10px; line-height: 1.7; margin-bottom: 14px; }
+.sheets-notice p { margin-top: 5px; }
+.sheets-help a, .sheets-open { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+.sheets-connection form { display: flex; flex-direction: column; align-items: stretch; gap: 9px; margin: 18px 0; }
+.sheets-connection label { font-weight: 600; margin-top: 5px; }
+.sheets-connection input { width: 100%; min-width: 0; padding: 11px 12px; color: var(--text); background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px; }
+.sheets-connection small { color: var(--muted); line-height: 1.6; }
+.sheets-connection .btn { min-height: 42px; padding: 10px 14px; display: inline-flex; gap: 8px; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-alt); font-weight: 600; }
+.sheets-connection .btn.primary { background: var(--green); color: var(--surface); border-color: var(--green); }
+.sheets-connection .btn svg { flex: 0 0 auto; }
+.sheets-connection form .btn { align-self: flex-start; margin-top: 5px; }
+.sheets-actions { display: flex; flex-wrap: wrap; gap: 9px; margin: 18px 0; }
+.sheets-state { background: var(--surface-alt); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; line-height: 1.7; overflow-wrap: anywhere; margin: 16px 0; }
+.sheets-state p { margin-top: 5px; }
+.sheets-open { display: inline-block; padding: 8px 0; margin-bottom: 6px; }
+@media (max-width: 600px) { .sheets-connection { padding: 18px 14px; } .sheets-actions { flex-direction: column; } .sheets-connection form .btn { align-self: stretch; } }

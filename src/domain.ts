@@ -138,7 +138,7 @@ export function validateData(value: unknown): value is Data {
     if (!number(order.quantity) || !Number.isInteger(order.quantity) || order.quantity < 1 || !number(order.unitPrice) || !number(order.paid)) return false
     if (!number(order.completedQuantity) || !Number.isInteger(order.completedQuantity) || order.completedQuantity > order.quantity) return false
     if (!Number.isSafeInteger(order.quantity * order.unitPrice) || order.paid > order.quantity * order.unitPrice) return false
-    return date(order.dueDate) && date(order.createdAt) && Object.hasOwn(statusLabels, order.status) && ['normal', 'high'].includes(order.priority)
+    return date(order.dueDate) && date(order.createdAt) && Object.prototype.hasOwnProperty.call(statusLabels, order.status) && ['normal', 'high'].includes(order.priority)
   })) return false
   return movements.every(movement => materialIds.has(movement.materialId) && ['in', 'out'].includes(movement.type) && number(movement.quantity) && movement.quantity > 0 && date(movement.date) && text(movement.note))
 }

@@ -131,7 +131,7 @@ test('JSON backup roundtrip, invalid import rejection and reset cancellation', a
   backup.customers[0].name = 'Khách từ bản sao lưu QA'
   page.once('dialog', dialog => dialog.accept())
   await input.setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) })
-  await expect(page.getByRole('status')).toContainText('Đã khôi phục dữ liệu')
+  await expect(page.locator('.toast')).toContainText('Đã khôi phục dữ liệu')
   expect((await stored(page)).customers[0].name).toBe('Khách từ bản sao lưu QA')
   await page.getByRole('button', { name: 'Đặt lại dữ liệu mẫu', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Giữ dữ liệu' }).click()

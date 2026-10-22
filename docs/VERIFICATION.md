@@ -2,7 +2,17 @@
 
 Ngày: 22/10/2026. Thư mục dự án: `D:\quản lý công ty`. Ban đầu thư mục trống, không có mã nguồn hoặc Git remote. Nhóm diey-team gồm nghiên cứu, kiến trúc, triển khai nghiệp vụ, QA độc lập và review độc lập. Lead tích hợp và kiểm tra bản cuối.
 
-## Kết quả
+## Bổ sung Google Sheets — 22/10/2026
+
+- `npm test`: **80/80** đạt, gồm 23 kiểm thử transport và 16 kiểm thử backend Apps Script giả lập.
+- `npx playwright test`: **34/34** đạt, gồm 12 trường hợp Sheets trên desktop/mobile. Đã kiểm tra tải/lưu đầy đủ payroll, khởi tạo có xác nhận, khóa không lưu trong localStorage/sessionStorage/URL, hủy tải, sửa trong lúc đang tải, lỗi mạng, xung đột revision và tab cục bộ cũ bị chặn gửi.
+- `npm run build`: đạt; kiểm tra mã Apps Script sinh ra khớp nguồn đạt. `npm run verify:dist`: đạt tại đường dẫn con, có màn hình Sheets sáng/tối trên hai kích thước, không lỗi JS hoặc tràn ngang toàn trang.
+- Đã xem ảnh [Sheets desktop sáng](previews/sheets-desktop-light.png), [desktop tối](previews/sheets-desktop-dark.png), [mobile sáng](previews/sheets-mobile-light.png), [mobile tối](previews/sheets-mobile-dark.png).
+- Review độc lập phát hiện backend kiểm tra schema chưa đủ chặt: đã thay bằng cùng bộ `validateData` của frontend, sinh vào `Code.gs`. Các trường hợp ngày sai, cấu hình lương sai, mã nhân viên/công trùng, kỳ lương hỏng và tổng đơn không an toàn bị từ chối trước commit; dữ liệu cũ và revision được giữ nguyên. Đã thống nhất độ dài khóa 32–256 ký tự.
+- Vitest cập nhật 4.1.12; npm báo **0 lỗ hổng** sau cập nhật. Bộ kiểm tra đầy đủ chạy đạt trên phiên bản mới.
+- **Chưa kiểm thử Google thật:** chưa có deployment Apps Script của chủ tài khoản. CORS/redirect, cấp quyền Google, quota và hiệu năng thực tế phải được nghiệm thu sau thiết lập. Test mock không được coi là kết nối Google thật thành công.
+
+## Kết quả bản bàn giao nhân sự trước khi bổ sung Sheets
 
 | Kiểm tra | Kết quả |
 | --- | --- |

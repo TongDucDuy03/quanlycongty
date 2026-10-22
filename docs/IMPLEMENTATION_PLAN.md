@@ -2,6 +2,8 @@
 
 Ngày lập: **22/10/2026**. Xem cơ sở lựa chọn ở [RESEARCH.md](RESEARCH.md). Tài liệu này là kế hoạch và tiêu chí nghiệm thu, không phải tuyên bố mọi hạng mục đã hoàn tất; trạng thái bàn giao thực tế nằm trong README và kết quả kiểm tra.
 
+**Bổ sung Google Sheets theo lựa chọn người dùng:** frontend tĩnh gọi Apps Script bằng POST có khóa riêng trong body; Sheet để riêng tư. Thứ tự triển khai: (1) backend khóa đọc/ghi và kiểm tra revision, (2) bộ kiểm tra nghiệp vụ dùng chung và lưu hai vùng luân phiên, (3) màn hình kết nối/tải/lưu và hướng dẫn, (4) kiểm thử auth, dữ liệu lương, xung đột, mạng lỗi và nhiều thiết bị bằng mô phỏng, (5) xuất bản frontend, (6) chủ tài khoản Google triển khai script rồi nghiệm thu kết nối thật. Các bước mã nguồn và kiểm thử mô phỏng đã triển khai; bước tài khoản Google cần URL deployment của người dùng. Xem [GOOGLE_SHEETS.md](GOOGLE_SHEETS.md).
+
 ## 1. Mục tiêu và kiến trúc
 
 Tạo bản demo tiếng Việt có thể trình diễn ngay: giao diện dễ đọc, ít thao tác, responsive trên desktop/điện thoại, hai chế độ sáng/tối. Dữ liệu mẫu đủ thể hiện đơn sắp trễ, công việc đang làm, vật tư dưới ngưỡng và khoản chưa thu.

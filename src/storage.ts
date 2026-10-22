@@ -30,6 +30,12 @@ export function loadData(scope?: string): {
 }
 
 /** Optimistic check prevents a stale tab from silently replacing a newer snapshot. */
+export function assertLocalDataCurrent(expectedToken: string | null, scope?: string): void {
+  if (localStorage.getItem(storageKey(scope)) !== expectedToken) {
+    throw new Error("Dữ liệu đã thay đổi ở một tab khác. Hãy sao lưu rồi tải lại trang trước khi đồng bộ.");
+  }
+}
+
 export function saveData(
   data: Data,
   expectedToken: string | null,
