@@ -7,6 +7,7 @@ Ngày: 22/10/2026. Thư mục dự án: `D:\quản lý công ty`. Ban đầu th�
 - QA độc lập: **117/117 unit tests**, gồm 30 kiểm thử backend; **24 trường hợp tài khoản E2E** trên desktop/mobile (lượt 22 ca và lượt bổ sung 2 ca mất phản hồi). Build production và `verify:dist` đạt, form điện thoại đã kiểm tra trực quan.
 - Đổi mật khẩu yêu cầu phiên ký và mật khẩu hiện tại; áp dụng giới hạn thử, kiểm tra mật khẩu mới, đổi salt/hash/version bằng một lần ghi. Mọi phiên cũ hết hiệu lực. Load/save kiểm tra lại phiên sau khi lấy khóa để chặn yêu cầu đã xếp hàng trước lúc đổi.
 - Kiểm tra xác nhận không khớp, mật khẩu hiện tại sai, mất phản hồi, đăng nhập bằng mật khẩu mới và giữ dữ liệu chưa đồng bộ. Các lần đổi thành công chạy trên backend giả lập, không thay mật khẩu thật của người dùng.
+- Backend thật đã cập nhật: đăng nhập hiện tại vẫn hoạt động, handler đổi mật khẩu từ chối mật khẩu mới không hợp lệ, phiên và snapshot revision 3 giữ nguyên. Commit `c96096a` được [workflow 39736632929](https://github.com/TongDucDuy03/quanlycongty/actions/runs/39736632929) build/deploy thành công. Chrome của người dùng tải bản mới, hiển thị nút **Đổi mật khẩu**, tài khoản admin và trạng thái đã đồng bộ v3.
 
 ## Google Sheet cố định và đăng nhập công ty — 22/10/2026
 
