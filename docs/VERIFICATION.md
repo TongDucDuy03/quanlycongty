@@ -2,6 +2,17 @@
 
 Ngày: 22/10/2026. Thư mục dự án: `D:\quản lý công ty`. Ban đầu thư mục trống, không có mã nguồn hoặc Git remote. Nhóm diey-team gồm nghiên cứu, kiến trúc, triển khai nghiệp vụ, QA độc lập và review độc lập. Lead tích hợp và kiểm tra bản cuối.
 
+## Bán hàng, chứng từ và website công khai — 22/10/2026
+
+- **133/133 unit tests** đạt, gồm kiểm tra tiền thực nhận so với đề nghị thanh toán, dữ liệu cũ, hủy phiếu, bất biến lịch sử, giới hạn giao hàng, lọc dữ liệu công khai, quyền xuất bản, CAS và phục hồi sau lỗi ghi.
+- **18/18 E2E mới** trên desktop/mobile đạt: bốn chứng từ, thu từng phần/hủy phiếu, giới hạn giao hàng, HTML an toàn, PDF tiếng Việt, website công khai và việc lưu bản nháp khác xuất bản. Bản production dưới đường dẫn con cũng vượt qua `verify:dist`: public/private, đăng nhập và reload, payroll, tải PDF/font, sáng/tối, không lỗi JavaScript hoặc tràn trang.
+- Lượt hồi quy tổng hợp **92/92 E2E** đạt (3,2 phút), bao gồm bộ mới mở rộng 20 ca và các luồng đơn/kho/khách/lương/đồng bộ/offline/mật khẩu cũ. Ca nhận lại bản Google sau phiếu cục bộ chưa đồng bộ đạt ở cả hai kích thước.
+- Sau sửa điều hướng bản nháp cuối, **2/2 E2E bổ sung** đạt: các link trong xem trước không rời editor; hủy chuyển trang bằng logo giữ tên đang nhập, không tự lưu/xuất bản. Tổng 94 ca riêng biệt đã đạt; build cuối và `verify:dist` chạy lại đạt. Phiên hiện có trên Chrome của người dùng vẫn hiển thị đã đồng bộ v3 sau nâng cấp backend.
+- QA độc lập tạo bốn PDF ngắn và một PDF dài ba trang, render bằng PyMuPDF và xem cả bảy trang: đủ chữ Việt, bảng/tổng/chữ ký không chồng hoặc bị cắt. Hai dấu kết thúc nội dung dài còn trong văn bản PDF.
+- Review phát hiện và sửa: nhận lại bản Google khi có phiếu chưa đồng bộ bị chặn bởi quy tắc lịch sử cục bộ; nút reset hứa xóa dữ liệu sau khi đã có lịch sử; rời biểu mẫu làm mất bản nháp không cảnh báo; phản hồi abort của StrictMode tạo cảnh báo public sai. Bản Google được nhận qua đường tin cậy có kiểm tra phiên bản cục bộ, còn chỉnh sửa và nhập JSON vẫn bảo vệ lịch sử.
+- Google Apps Script thật đã cập nhật deployment hiện có lên **phiên bản 4**, giữ URL/quyền hiện hành. `GET ?action=catalog` trả thành công, chưa có bản xuất bản; GET nội bộ và xuất bản không có phiên đều trả `UNAUTHORIZED`. Không chạy setup, không ghi dữ liệu kinh doanh hay xuất bản hồ sơ thật trong quá trình triển khai. Phép thử đăng nhập bằng mật khẩu thiết lập ban đầu bị từ chối; không lặp lại hoặc đổi mật khẩu của người dùng.
+- Nội dung public hiện là bộ minh họa có nhãn. Việc xuất bản có xác thực và ghi chứng từ được kiểm thử bằng backend giả lập; không tạo giao dịch thử trong Sheet đang dùng.
+
 ## Đổi mật khẩu tài khoản quản lý — 22/10/2026
 
 - QA độc lập: **117/117 unit tests**, gồm 30 kiểm thử backend; **24 trường hợp tài khoản E2E** trên desktop/mobile (lượt 22 ca và lượt bổ sung 2 ca mất phản hồi). Build production và `verify:dist` đạt, form điện thoại đã kiểm tra trực quan.

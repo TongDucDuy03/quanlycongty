@@ -102,7 +102,7 @@ export function useSheetsSync(options: Options) {
       block('Có thay đổi từ thiết bị khác. Dữ liệu trên máy vẫn được giữ. Hãy sao lưu JSON, rồi chọn “Tải từ Google Sheets” để nhận bản mới trước khi tiếp tục.')
       return
     }
-    if (['UNAUTHORIZED', 'AUTH_FAILED', 'INVALID_TOKEN', 'INVALID_ENDPOINT', 'INVALID_DATA', 'LIMIT', 'TOO_LARGE', 'CONFIG', 'CONFIG_ERROR', 'LOCAL_STORAGE'].includes(code)) { block(errorText(error)); return }
+    if (['UNAUTHORIZED', 'AUTH_FAILED', 'INVALID_TOKEN', 'INVALID_ENDPOINT', 'INVALID_DATA', 'IMMUTABLE_HISTORY', 'LIMIT', 'TOO_LARGE', 'CONFIG', 'CONFIG_ERROR', 'LOCAL_STORAGE'].includes(code)) { block(errorText(error)); return }
     const delay = RETRIES[failures.current++]
     update({ waiting: true, pending: Boolean(checkpoint.current?.pending) || clean.current !== JSON.stringify(latest.current.data), message: delay === undefined ? 'Chưa kết nối được. Dữ liệu vẫn còn trên thiết bị; bấm “Đồng bộ ngay” để thử lại.' : 'Đang chờ kết nối. Dữ liệu vẫn được giữ trên thiết bị và sẽ tự đồng bộ khi kết nối trở lại.' })
     if (delay !== undefined) retryTimer.current = setTimeout(() => { retryTimer.current = null; void run('refresh') }, delay)

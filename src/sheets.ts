@@ -30,6 +30,7 @@ export function validateSheetsConfig(config: SheetsConnectionConfig): void {
 const record = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const validRevision = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 const messages: Record<string, string> = {
+  IMMUTABLE_HISTORY: 'Bản này làm thay đổi lịch sử chứng từ hoặc số dư đầu kỳ. Hãy sao lưu rồi tải bản mới từ Google; hủy chứng từ có lý do thay vì xóa/sửa phiếu đã lập.',
   UNAUTHORIZED: 'Khóa kết nối không đúng hoặc đã được thay đổi.',
   AUTH_FAILED: 'Khóa kết nối không đúng hoặc đã được thay đổi.',
   SESSION_EXPIRED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để đồng bộ.',

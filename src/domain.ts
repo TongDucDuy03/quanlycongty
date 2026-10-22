@@ -1,4 +1,5 @@
 import { validatePayrollData, type PayrollData } from './payroll'
+import { validateCommerce, type CommerceData } from './commerce'
 
 export type OrderStatus = 'pending' | 'machining' | 'qc' | 'ready' | 'delivered'
 export type Priority = 'normal' | 'high'
@@ -60,6 +61,8 @@ export interface Data {
   movements: StockMovement[]
   /** Optional to preserve existing v1 demo/cloud backups without inventing staff. */
   payroll?: PayrollData
+  /** Optional: old workshop/payroll snapshots remain valid until an admin edits commerce. */
+  commerce?: CommerceData
 }
 
 export const statusLabels: Record<OrderStatus, string> = {
@@ -140,7 +143,7 @@ export function validateData(value: unknown): value is Data {
     if (!Number.isSafeInteger(order.quantity * order.unitPrice) || order.paid > order.quantity * order.unitPrice) return false
     return date(order.dueDate) && date(order.createdAt) && Object.prototype.hasOwnProperty.call(statusLabels, order.status) && ['normal', 'high'].includes(order.priority)
   })) return false
-  return movements.every(movement => materialIds.has(movement.materialId) && ['in', 'out'].includes(movement.type) && number(movement.quantity) && movement.quantity > 0 && date(movement.date) && text(movement.note))
+  return movements.every(movement => materialIds.has(movement.materialId) && ['in', 'out'].includes(movement.type) && number(movement.quantity) && movement.quantity > 0 && date(movement.date) && text(movement.note)) && (value.commerce === undefined || validateCommerce(value.commerce, orders as unknown as Order[]))
 }
 
 export function applyStockMovement(data: Data, materialId: string, type: 'in' | 'out', quantity: number, note: string): Data {

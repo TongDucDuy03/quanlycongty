@@ -44,7 +44,7 @@ Khi cập nhật `Code.gs`, phải vào **Deploy → Manage deployments → Edit
 
 1. Sau khi backend mới được triển khai, gọi POST `configureLogin` với khóa quản trị hiện có, tên tài khoản quản lý và mật khẩu mạnh. API này chỉ khởi tạo tài khoản một lần, không ghi đè tài khoản đã tồn tại. Không đưa các giá trị bí mật vào URL, file được Git theo dõi hoặc log.
 2. Đặt `VITE_COMPANY_ENDPOINT` bằng URL `/exec` trong môi trường build Pages, và `VITE_COMPANY_NAME` bằng tên hiển thị. Đây là URL công khai, không phải khóa. Không có biến `VITE_*` chứa mật khẩu hoặc khóa quản trị.
-3. Build và deploy frontend. Thiết bị mới thấy màn hình đăng nhập và tự nhận dữ liệu sau xác thực. Cache công ty được tách khỏi demo; không tự đẩy dữ liệu mẫu lên công ty.
+3. Build và deploy frontend. Trang chủ mở website giới thiệu; nút Quản lý hoặc `#admin` mở màn hình đăng nhập và tự nhận dữ liệu sau xác thực. Cache công ty được tách khỏi demo; không tự đẩy dữ liệu mẫu lên công ty.
 4. Tài khoản dùng PBKDF2-SHA256 600.000 vòng; phiên được ký bằng HMAC, hết hạn sau 30 ngày. Sai đăng nhập 5 lần trong cửa sổ 15 phút sẽ tạm giới hạn thử tiếp. Khóa quản trị cũ chỉ dành cho bảo trì và chuyển phiên, không chia sẻ cho người dùng hằng ngày.
 
 Các bước nhập URL/khóa ở chế độ phát triển chỉ còn dành cho bản không đặt `VITE_COMPANY_ENDPOINT`.
@@ -88,4 +88,13 @@ Tài liệu Google: [Web Apps](https://developers.google.com/apps-script/guides/
 
 ## Dành cho người bảo trì mã nguồn
 
-`Code.gs` là file triển khai được sinh từ `google-apps-script/Backend.js` và bộ kiểm tra dữ liệu dùng chung trong `src/domain.ts`, `src/payroll.ts`. Khi sửa các file này, chạy `npm run build:apps-script`, commit lại `Code.gs` rồi cập nhật deployment Google. `npm run build` kiểm tra file sinh có khớp nguồn hay không. Người thiết lập chỉ cần dán **Code.gs** và manifest, không cần dán thêm `Backend.js`.
+`Code.gs` là file triển khai được sinh từ `google-apps-script/Backend.js` và bộ kiểm tra dữ liệu dùng chung trong `src/domain.ts`, `src/payroll.ts`, `src/commerce.ts`. Khi sửa các file này, chạy `npm run build:apps-script`, commit lại `Code.gs` rồi cập nhật deployment Google. `npm run build` kiểm tra file sinh có khớp nguồn hay không. Người thiết lập chỉ cần dán **Code.gs** và manifest, không cần dán thêm `Backend.js`.
+
+## Chứng từ và website giới thiệu
+
+- Mở **Bán hàng & chứng từ → Thông tin xuất chứng từ**, nhập thông tin người bán và ngân hàng dùng trên phiếu. Dữ liệu này không tự đưa lên website công khai. Chọn đơn, loại phiếu rồi phát hành; xem trước, in hoặc tải PDF để tự gửi khách.
+- Đề nghị thanh toán không ghi nhận đã thu. Chỉ **Phiếu thu** hoặc **Thu tiền** cập nhật công nợ. Khoản thu có từ trước nâng cấp được giữ thành số đầu kỳ. Phiếu đã phát hành chỉ được hủy có lý do, không sửa/xóa lịch sử bằng nhập lại bản sao cũ.
+- Mở **Trang giới thiệu**, điền hồ sơ công khai và sản phẩm, bấm **Lưu bản nháp website**, chờ **Đã đồng bộ**, rồi **Xuất bản website**. Không cần cấu hình Sheet lại trên mỗi thiết bị. Bản nháp chưa xuất bản không thay đổi trang khách đang xem.
+- API `GET ?action=catalog` chỉ đọc bản công khai đã lọc trong vùng riêng PA/PB. Nội dung công khai tối đa 256 KiB, 100 sản phẩm; snapshot nội bộ vẫn giới hạn 2 MiB, tối đa 2.000 chứng từ. Không đặt ảnh hoặc PDF dạng nhúng trong Sheet.
+- Nút yêu cầu báo giá mở ứng dụng email của khách với nội dung soạn sẵn; khách tự gửi. Chưa có hộp thư yêu cầu trên máy chủ hoặc thanh toán trực tuyến. Chưa xuất bản nội dung thì trang hiển thị bộ minh họa có nhãn demo.
+- Khi cập nhật backend này, triển khai **phiên bản mới của deployment hiện có**, giữ URL `/exec` và các quyền hiện hành; không chạy lại `setup`, không xóa snapshot/Script Properties. Khi xung đột, sao lưu bản trên máy rồi nhận bản Google chính thức; phiếu cục bộ chưa đồng bộ cần xử lý lại sau đối chiếu.

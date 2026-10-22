@@ -4,6 +4,7 @@ import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 import { createSeedData } from './seed'
 import { validateData, type Data } from './domain'
+import { ensureCommerce, issueDocument, voidDocument } from './commerce'
 
 const source = readFileSync(new URL('../google-apps-script/Code.gs', import.meta.url), 'utf8')
 
@@ -17,6 +18,8 @@ function backend() {
   let lockCount = 0
   let now = Date.now()
   let onLock: (() => void) | undefined
+  let privateReads = 0
+  let failPublicWrites = false
   class Sheet {
     values = new Map<string, unknown>()
     rows = 1000
@@ -26,9 +29,10 @@ function backend() {
       return {
         getValue: () => this.values.get(`${row},${col}`) ?? '',
         setValue: (value: unknown) => { this.values.set(`${row},${col}`, value) },
-        getValues: () => Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => this.values.get(`${row + r},${col + c}`) ?? '')),
+        getValues: () => { if (/_[AB]$/.test(this.name)) privateReads++; return Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => this.values.get(`${row + r},${col + c}`) ?? '')) },
         setValues: (values: unknown[][]) => {
           if (failWrites && /_[AB]$/.test(this.name)) throw new Error('Simulated write failure')
+          if (failPublicWrites && /_P[AB]$/.test(this.name)) throw new Error('Simulated public write failure')
           values.forEach((line, r) => line.forEach((v, c) => this.values.set(`${row + r},${col + c}`, v)))
         },
         clearContent: () => { for (let r = row; r < row + rows; r++) for (let c = col; c < col + cols; c++) this.values.delete(`${r},${c}`) },
@@ -70,11 +74,12 @@ function backend() {
     console: { log: () => {} },
     setup: undefined as unknown as () => void,
     doPost: undefined as unknown as (event: unknown) => string,
+    doGet: undefined as unknown as (event: unknown) => string,
   }
   runInNewContext(source, context)
   context.setup()
   const request = (body: Record<string, unknown>) => JSON.parse(context.doPost({ postData: { contents: JSON.stringify({ token: properties.get('QLCT_TOKEN'), ...body }) } }))
-  return { request, properties, sheets, spreadsheet, context, onNextLock: (callback: () => void) => { onLock = callback }, advanceTime: (ms: number) => { now += ms }, setBusy: (v: boolean) => { busy = v }, failWrites: () => { failWrites = true }, failReports: () => { failReports = true }, locks: () => lockCount, held: () => held }
+  return { request, get: (action?: string) => JSON.parse(context.doGet({ parameter: { action } })), privateReads: () => privateReads, failPublicWrites: () => { failPublicWrites = true }, properties, sheets, spreadsheet, context, onNextLock: (callback: () => void) => { onLock = callback }, advanceTime: (ms: number) => { now += ms }, setBusy: (v: boolean) => { busy = v }, failWrites: () => { failWrites = true }, failReports: () => { failReports = true }, locks: () => lockCount, held: () => held }
 }
 
 describe('Apps Script backend (mocked Google services; not a live deployment)', () => {
@@ -348,4 +353,121 @@ describe('manager account and signed sessions (mocked Apps Script V8 without Tex
     expect(b.properties.get('QLCT_COMMIT')).toBe(commit)
     expect(b.held()).toBe(false)
   }, 20000)
+})
+
+describe('commerce history and separately published public catalog', () => {
+  function fixture() {
+    const b = backend(), data = ensureCommerce(createSeedData())
+    // Existing owner-configured account fixture: no passwords or costly login KDF.
+    b.properties.set('QLCT_LOGIN', JSON.stringify({ username: 'admin', salt: 'a'.repeat(32), hash: 'b'.repeat(64), version: 'c'.repeat(16) }))
+    const session = b.request({ action: 'exchange' })
+    data.commerce!.company.name = 'Private legal company'
+    data.commerce!.company.bankAccount = 'PRIVATE-BANK-123'
+    data.commerce!.publicProfile.name = 'Published workshop'
+    data.commerce!.products = [
+      { id: 'p1', name: 'Visible shaft', category: 'CNC', summary: 'Made to order', specification: '', material: 'Steel', unit: 'piece', imageUrl: 'assets/shaft.svg', priceLabel: 'Contact', published: true, featured: true },
+      { id: 'p2', name: 'UNPUBLISHED-PRODUCT', category: '', summary: '', specification: '', material: '', unit: '', imageUrl: '', priceLabel: '', published: false, featured: false },
+    ]
+    return { ...b, data, session }
+  }
+  it('rejects public private-data actions and returns an empty catalog without reading private buffers', () => {
+    const b = fixture()
+    b.request({ action: 'save', expectedRevision: 0, data: b.data })
+    const reads = b.privateReads()
+    expect(b.get()).toMatchObject({ ok: false, code: 'UNAUTHORIZED' })
+    expect(b.get('load')).toMatchObject({ ok: false, code: 'UNAUTHORIZED' })
+    expect(b.get('catalog')).toEqual({ ok: true, catalog: null })
+    expect(b.privateReads()).toBe(reads)
+    expect(b.request({ action: 'load', token: '' })).toMatchObject({ ok: false, code: 'UNAUTHORIZED' })
+  })
+  it('requires a signed session and current saved revision for publication', () => {
+    const b = fixture()
+    b.request({ action: 'save', expectedRevision: 0, data: b.data })
+    expect(b.request({ action: 'publishCatalog', expectedRevision: 1 })).toMatchObject({ ok: false, code: 'UNAUTHORIZED' })
+    expect(b.request({ action: 'publishCatalog', token: '', expectedRevision: 1 })).toMatchObject({ ok: false, code: 'UNAUTHORIZED' })
+    expect(b.request({ action: 'publishCatalog', token: b.session.token, expectedRevision: 0 })).toMatchObject({ ok: false, code: 'CONFLICT' })
+    b.onNextLock(() => {
+      const account = JSON.parse(b.properties.get('QLCT_LOGIN')!)
+      b.properties.set('QLCT_LOGIN', JSON.stringify({ ...account, version: 'f'.repeat(16) }))
+    })
+    expect(b.request({ action: 'publishCatalog', token: b.session.token, expectedRevision: 1 })).toMatchObject({ ok: false, code: 'SESSION_EXPIRED' })
+    expect(b.get('catalog')).toEqual({ ok: true, catalog: null })
+  })
+  it('publishes only server-allowlisted fields and leaves private revision unchanged', () => {
+    const b = fixture()
+    Object.assign(b.data.commerce!.publicProfile, { token: 'PRIVATE-TOKEN', payroll: b.data.payroll })
+    Object.assign(b.data.commerce!.products[0], { bankAccount: 'PRIVATE-BANK-123', customers: b.data.customers })
+    expect(b.request({ action: 'save', expectedRevision: 0, data: b.data })).toMatchObject({ ok: true, revision: 1 })
+    const commit = b.properties.get('QLCT_COMMIT')
+    expect(b.request({ action: 'publishCatalog', token: b.session.token, expectedRevision: 1, catalog: { token: 'CLIENT-INJECTION' } })).toMatchObject({ ok: true, publishedAt: expect.any(String) })
+    expect(b.properties.get('QLCT_COMMIT')).toBe(commit)
+    const reads = b.privateReads(), result = b.get('catalog')
+    expect(result.ok).toBe(true)
+    expect(result.catalog.products).toHaveLength(1)
+    expect(result.catalog.profile.name).toBe('Published workshop')
+    expect(JSON.stringify(result)).not.toMatch(/PRIVATE|UNPUBLISHED|CLIENT-INJECTION|payroll|customers|bankAccount|spreadsheetUrl|revision|orders/)
+    expect(b.privateReads()).toBe(reads)
+    // Public read remains available even if an unrelated private buffer is corrupt.
+    const manifest = JSON.parse(commit!)
+    b.sheets.get(`QLCT_${b.properties.get('QLCT_NAMESPACE')}_${manifest.slot}`)!.getRange(2, 1).setValue('bad-private-chunk')
+    expect(b.get('catalog')).toEqual(result)
+  })
+  it('keeps drafts private until explicitly published and preserves last public commit on failed writes', () => {
+    const b = fixture()
+    b.request({ action: 'save', expectedRevision: 0, data: b.data })
+    b.request({ action: 'publishCatalog', token: b.session.token, expectedRevision: 1 })
+    const original = b.get('catalog')
+    b.data.commerce!.publicProfile.name = 'Draft renamed workshop'
+    b.data.commerce!.products[0].published = false
+    b.request({ action: 'save', expectedRevision: 1, data: b.data })
+    expect(b.get('catalog')).toEqual(original)
+    b.failPublicWrites()
+    expect(b.request({ action: 'publishCatalog', token: b.session.token, expectedRevision: 2 })).toMatchObject({ ok: false, code: 'INTERNAL' })
+    expect(b.get('catalog')).toEqual(original)
+    expect(b.request({ action: 'load' })).toMatchObject({ ok: true, revision: 2 })
+  })
+  it('removes unpublished products on the next successful publication and rejects a private-buffer manifest', () => {
+    const b = fixture()
+    b.request({ action: 'save', expectedRevision: 0, data: b.data })
+    b.request({ action: 'publishCatalog', token: b.session.token, expectedRevision: 1 })
+    b.data.commerce!.products[0].published = false
+    b.request({ action: 'save', expectedRevision: 1, data: b.data })
+    expect(b.get('catalog').catalog.products).toHaveLength(1)
+    expect(b.request({ action: 'publishCatalog', token: b.session.token, expectedRevision: 2 })).toMatchObject({ ok: true })
+    expect(b.get('catalog').catalog.products).toEqual([])
+    const reads = b.privateReads()
+    b.properties.set('QLCT_PUBLIC_COMMIT', b.properties.get('QLCT_COMMIT')!)
+    expect(b.get('catalog')).toMatchObject({ ok: false, code: 'CONFIG' })
+    expect(b.privateReads()).toBe(reads)
+  })
+  it('rejects oversized publication without replacing the previous public version', () => {
+    const b = fixture()
+    b.request({ action: 'save', expectedRevision: 0, data: b.data })
+    b.request({ action: 'publishCatalog', token: b.session.token, expectedRevision: 1 })
+    const original = b.get('catalog')
+    b.data.commerce!.products = Array.from({ length: 100 }, (_, index) => ({ ...b.data.commerce!.products[0], id: `p${index}`, specification: 'x'.repeat(3000) }))
+    expect(b.request({ action: 'save', expectedRevision: 1, data: b.data })).toMatchObject({ ok: true, revision: 2 })
+    expect(b.request({ action: 'publishCatalog', token: b.session.token, expectedRevision: 2 })).toMatchObject({ ok: false, code: 'LIMIT' })
+    expect(b.get('catalog')).toEqual(original)
+  })
+  it('rejects legacy paid substitution and old-client history drops; allows receipt issue and reversal', () => {
+    const b = fixture(), legacy = structuredClone(b.data)
+    delete legacy.commerce
+    b.request({ action: 'save', expectedRevision: 0, data: legacy })
+    const falseHistory = structuredClone(b.data)
+    falseHistory.commerce!.openingPaid = falseHistory.commerce!.openingPaid.filter(item => item.orderId !== 'o1')
+    falseHistory.orders[0].paid = 0
+    const fabricated = issueDocument(falseHistory, { kind: 'receipt', orderId: 'o1', date: '2026-10-22', amount: legacy.orders[0].paid })
+    expect(b.request({ action: 'save', expectedRevision: 1, data: fabricated })).toMatchObject({ ok: false, code: 'IMMUTABLE_HISTORY' })
+    const receipt = issueDocument(b.data, { kind: 'receipt', orderId: 'o1', date: '2026-10-22', amount: 5000 })
+    expect(b.request({ action: 'save', expectedRevision: 1, data: receipt })).toMatchObject({ ok: true, revision: 2 })
+    expect(b.request({ action: 'save', expectedRevision: 2, data: legacy })).toMatchObject({ ok: false, code: 'IMMUTABLE_HISTORY' })
+    const changed = structuredClone(receipt)
+    changed.commerce!.documents[0].company.name = 'Tampered snapshot'
+    expect(b.request({ action: 'save', expectedRevision: 2, data: changed })).toMatchObject({ ok: false, code: 'IMMUTABLE_HISTORY' })
+    const reversed = voidDocument(receipt, receipt.commerce!.documents[0].id, 'Wrong reference')
+    expect(b.request({ action: 'save', expectedRevision: 2, data: reversed })).toMatchObject({ ok: true, revision: 3 })
+    expect(b.request({ action: 'load' }).data.orders[0].paid).toBe(legacy.orders[0].paid)
+    expect(b.request({ action: 'load' }).data.payroll).toEqual(legacy.payroll)
+  })
 })

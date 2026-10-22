@@ -1,6 +1,6 @@
 # XưởngViệt
 
-Demo quản lý doanh nghiệp gia công cơ khí nhỏ, bằng tiếng Việt. React 19 + TypeScript + Vite, chạy trên GitHub Pages dưới dạng trang tĩnh. Có đơn hàng, sản xuất, kho, công nợ, nhân sự, chấm công, tính lương, chế độ sáng/tối và giao diện điện thoại.
+Demo website giới thiệu và quản lý doanh nghiệp gia công cơ khí nhỏ, bằng tiếng Việt. React 19 + TypeScript + Vite, chạy trên GitHub Pages dưới dạng trang tĩnh. Khách truy cập xem giới thiệu, sản phẩm và dịch vụ; khu quản lý đăng nhập riêng có đơn hàng, sản xuất, kho, công nợ, chứng từ PDF, nhân sự, chấm công và tính lương. Giao diện hỗ trợ điện thoại, khu quản lý có chế độ sáng/tối.
 
 Repository: [TongDucDuy03/quanlycongty](https://github.com/TongDucDuy03/quanlycongty). Địa chỉ Pages: [tongducduy03.github.io/quanlycongty](https://tongducduy03.github.io/quanlycongty/). Xem [mô tả tính năng ngắn gọn](docs/FEATURES.md).
 
@@ -24,6 +24,16 @@ npm run preview -- --port 4173
 
 Không mở `dist/index.html` bằng `file://`; cần web server. Giao diện điện thoại truy cập được qua IP LAN của máy chạy server nếu cùng mạng và firewall cho phép; mỗi trình duyệt có dữ liệu demo riêng.
 
+## Trang công khai và khu quản lý
+
+Trong bản có cấu hình công ty, đường link gốc mở website công khai. `#home`, `#products`, `#contact` dẫn tới giới thiệu, danh mục và liên hệ. Chọn **Đăng nhập quản lý** (`#admin`) để vào khu quản lý; các đường dẫn cũ như `#orders` và `#settings` vẫn yêu cầu đăng nhập. Bản phát triển không có endpoint giữ trang gốc là demo quản lý; mở `#home` để xem website mẫu.
+
+Khi doanh nghiệp chưa xuất bản nội dung, website hiển thị mẫu có nhãn minh họa; không tự tạo địa chỉ, số điện thoại hay email doanh nghiệp. Thông tin nhân sự, lương, khách hàng, đơn hàng và ngân hàng không tự xuất hiện trên trang công khai.
+
+Để cập nhật website: vào **Trang giới thiệu** (`#website`), điền hồ sơ công khai, thêm sản phẩm/dịch vụ và chọn các mục muốn hiển thị. Bấm **Lưu bản nháp website**, chờ trạng thái **Đã đồng bộ**, rồi bấm **Xuất bản website**. Xem trước bản nháp không làm thay đổi trang khách đang xem. Xuất bản chỉ lấy các trường công khai đã cho phép từ bản dữ liệu đã đồng bộ; chế độ demo cục bộ chỉ hỗ trợ xem trước.
+
+Biểu mẫu **Soạn email báo giá** mở ứng dụng email của khách. Khách kiểm tra nội dung, đính kèm bản vẽ và tự gửi; website chưa lưu yêu cầu vào hộp thư quản lý và không tự gửi email. Nút này cần email doanh nghiệp đã được cấu hình, xuất bản.
+
 ## Các luồng đã xây
 
 - **Tổng quan:** đơn đang mở, giá trị đơn, tiền còn phải thu, đơn trễ, phân bố công đoạn và vật tư cần bổ sung.
@@ -31,18 +41,29 @@ Không mở `dist/index.html` bằng `file://`; cần web server. Giao diện đ
 - **Sản xuất:** bảng công đoạn chờ → gia công → QC → sẵn sàng giao → đã giao; cập nhật số chi tiết hoàn thành.
 - **Kho:** tồn, ngưỡng tối thiểu, nhập/xuất có ghi chú và lịch sử; chặn xuất quá tồn.
 - **Khách hàng:** danh bạ, thêm khách, xem các đơn liên quan.
-- **Công nợ:** giá trị đơn, tổng đã thu, số còn phải thu; chặn thu quá số còn lại.
+- **Công nợ & phiếu thu:** giá trị đơn, tổng đã thu, số còn phải thu; mỗi lần thu tạo phiếu có ngày, phương thức, mã giao dịch và ghi chú. Chặn thu quá số còn lại; hủy phiếu có lý do sẽ hoàn lại công nợ tương ứng. Tiền đã thu trước khi nâng cấp được giữ là số dư đầu kỳ, không dựng phiếu lịch sử giả.
+- **Bán hàng & chứng từ:** lập báo giá, đề nghị thanh toán, phiếu giao hàng và phiếu thu từ một đơn có sẵn. Lưu hồ sơ đơn vị, thông tin ngân hàng; xem/lọc lịch sử, tải PDF tiếng Việt, in A4 hoặc tải bản HTML độc lập. Chứng từ giữ bản thông tin tại lúc lập, không tự đổi theo hồ sơ/đơn hàng được sửa sau đó.
+- **Website công khai:** giới thiệu doanh nghiệp, năng lực gia công, danh mục sản phẩm/dịch vụ, bộ lọc nhóm, xem chi tiết và liên hệ báo giá. Quản trị bản nháp và xuất bản riêng trong `#website`.
 - **Nhân sự:** thêm/sửa hồ sơ, bộ phận, ngày vào/nghỉ, lương tháng/ngày/giờ, cơ sở bảo hiểm và phụ cấp từng người.
 - **Chấm công:** theo người/ngày, giờ thường, phép hưởng lương và tăng ca theo ba nhóm ngày; tổng hợp tháng, không tính trùng một người/ngày.
 - **Cấu hình lương:** ngày công chuẩn, giờ/ngày, hệ số tăng ca, tỷ lệ bảo hiểm, danh mục phụ cấp và mức mặc định.
 - **Bảng lương:** công thức thu nhập/thực lĩnh rõ ràng; thưởng, tạm ứng, khấu trừ, thuế nhập tay; chi tiết lương, CSV, chốt tháng giữ nguyên lịch sử và mở lại có xác nhận.
-- **Dữ liệu:** CSV để mở trong Sheets/Excel, sao lưu/khôi phục JSON được kiểm tra; chế độ demo cục bộ có đặt lại dữ liệu mẫu với xác nhận.
+- **Dữ liệu:** CSV để mở trong Sheets/Excel, sao lưu/khôi phục JSON được kiểm tra. Bản khôi phục không được xóa/sửa lịch sử chứng từ hoặc số dư đầu kỳ đã có; điều chỉnh phiếu bằng thao tác hủy có lý do. Chế độ cục bộ chỉ hiện nút đặt lại dữ liệu mẫu trước khi bắt đầu lưu phần bán hàng/chứng từ. Khi xử lý xung đột đồng bộ, người dùng vẫn có thể sao lưu rồi nhận bản chính thức từ Google.
 - **Google Sheets công ty:** cấu hình Sheet một lần cho hệ thống. Máy tính và điện thoại mở cùng đường link, đăng nhập tài khoản quản lý để nhận cùng dữ liệu; không nhập URL hoặc khóa kết nối trên từng thiết bị. Tự lưu sau thay đổi, kiểm tra dữ liệu mới khi quay lại ứng dụng và chống ghi đè giữa các thiết bị. Giữ đầy đủ chấm công, kỳ lương đã chốt và các tab báo cáo để xem. Người triển khai thiết lập theo [hướng dẫn](docs/GOOGLE_SHEETS.md).
 - **Supabase tùy chọn:** giữ bộ kết nối cũ cho môi trường đã cấu hình; không cần dùng khi chọn Google Sheets.
 
 Các nút thao tác cập nhật dữ liệu thực trong demo. Số phần trăm ở danh sách đơn phản ánh **mốc công đoạn**, còn số chi tiết hoàn thành theo dõi riêng ở chi tiết/bảng sản xuất. Kho chưa tự trừ theo định mức đơn hàng. Một đơn hiện có một dòng chi tiết. Tên, thông tin liên hệ và số liệu seed là giả lập.
 
-Đây chưa phải ERP/kế toán hoàn chỉnh: chưa có phân quyền nhân viên, lịch máy hữu hạn, QC theo tiêu chí, xuất PDF báo giá, tệp bản vẽ, gia công ngoài, hóa đơn VAT, nhật ký phiếu thu, sổ chi, giá thành hoặc lợi nhuận. Responsive không đồng nghĩa app offline/PWA.
+Đây chưa phải ERP/kế toán hoàn chỉnh: chưa có phân quyền nhân viên, lịch máy hữu hạn, QC theo tiêu chí, tải/lưu tệp bản vẽ, gia công ngoài, hóa đơn VAT, sổ chi, giá thành hoặc lợi nhuận. Chứng từ là bản thương mại nội bộ, **không phải hóa đơn giá trị gia tăng**. Chưa có giỏ hàng, thanh toán trực tuyến hoặc hộp thư nhận yêu cầu báo giá phía máy chủ. Responsive không đồng nghĩa app offline/PWA.
+
+## Lập và tải chứng từ
+
+1. Vào **Bán hàng & chứng từ → Thông tin xuất chứng từ**, lưu tên doanh nghiệp và thông tin pháp lý/ngân hàng cần đưa lên bản in. Bộ hồ sơ này tách riêng thông tin website công khai.
+2. Chọn **Lập chứng từ**, chọn đơn hàng, loại phiếu và ngày lập. Có thể mở nhanh báo giá, phiếu giao hàng hoặc đề nghị thanh toán ngay từ chi tiết đơn; nút thu tiền hiện hữu cũng tạo phiếu thu.
+3. Nhập số tiền hoặc số lượng giao phù hợp, điều kiện và ghi chú cần gửi cho khách. **Phiếu thu** ghi nhận tiền thực nhận và giảm công nợ. **Đề nghị thanh toán** và **báo giá** không ghi nhận thu tiền. **Phiếu giao hàng** giới hạn tổng lượng giao theo các phiếu còn hiệu lực nhưng không tự cập nhật sản xuất hoặc xuất kho.
+4. Chọn chứng từ đã lưu để **Tải PDF**, **In / Lưu PDF** hoặc **Tải bản HTML**. PDF dùng chữ tiếng Việt có thể chọn/copy, phông Noto Sans được nhúng; font chỉ tải khi tạo PDF. HTML độc lập là định dạng riêng, không phải PDF.
+
+Mỗi chứng từ hiện gắn với một đơn và một dòng chi tiết. Khách hàng, hồ sơ doanh nghiệp, hàng hóa và số tiền trên chứng từ được chụp lại khi lập. Phiếu sai được đánh dấu hủy có lý do, giữ trong lịch sử; không xóa hoặc sửa nội dung phiếu đã phát hành. Phiếu thu ghi rõ tiền đã thu trước phiếu, tiền thu lần này và số còn lại theo thời điểm lập.
 
 ## Lưu dữ liệu bằng Google Sheets
 
@@ -60,7 +81,7 @@ Bộ kết nối Supabase trước đây vẫn có trong mã nguồn, xem [docs/
 
 ## Đưa demo lên GitHub Pages
 
-GitHub Pages dùng cho **demo dữ liệu giả**, có thể kết nối một Google Sheet demo để thử đồng bộ. Workflow đặt `VITE_DEMO_ONLY=true` để tắt bộ kết nối Supabase và giao diện nhắc dùng dữ liệu giả. `VITE_COMPANY_ENDPOINT` bật màn hình đăng nhập và kết nối Sheet cố định; `VITE_COMPANY_NAME` đặt tên hiển thị trên màn hình đăng nhập. Đây đều là cấu hình công khai, không phải nơi lưu bí mật. Không thêm khóa hoặc mật khẩu vào GitHub repository. Chính sách Pages có giới hạn cho kinh doanh/giao dịch nhạy cảm; đọc [nghiên cứu](docs/RESEARCH.md) trước khi chọn hosting vận hành thật.
+GitHub Pages dùng cho **demo dữ liệu giả và trình diễn website**, có thể kết nối một Google Sheet demo để thử đồng bộ. Đây không phải cấu hình vận hành thương mại điện tử, nhận thanh toán hoặc giao dịch nhạy cảm. Workflow đặt `VITE_DEMO_ONLY=true` để tắt bộ kết nối Supabase và giao diện nhắc dùng dữ liệu giả. `VITE_COMPANY_ENDPOINT` bật khu quản lý đăng nhập và kết nối Sheet cố định; `VITE_COMPANY_NAME` đặt tên hiển thị trên màn hình đăng nhập. Đây đều là cấu hình công khai, không phải nơi lưu bí mật. Không thêm khóa hoặc mật khẩu vào GitHub repository. Chính sách Pages có giới hạn cho kinh doanh/giao dịch nhạy cảm; đọc [nghiên cứu](docs/RESEARCH.md) trước khi chọn hosting vận hành thật.
 
 1. Tạo repository trên GitHub. Với GitHub Free, dùng repository public để có Pages miễn phí.
 2. Đẩy toàn bộ mã nguồn (không đẩy `node_modules`, `.env`, `dist`) lên nhánh `main`:
@@ -104,4 +125,4 @@ Unit tests kiểm tra nghiệp vụ, lương, lưu trữ, bộ kết nối Sheet
 - [Schema Supabase](supabase/schema.sql)
 - [Biên bản kiểm tra](docs/VERIFICATION.md)
 
-Font Be Vietnam Pro tải từ Google Fonts, có font hệ thống thay thế khi mất mạng. Icon Lucide; không dùng ảnh/tài sản doanh nghiệp thật.
+Font giao diện Be Vietnam Pro tải từ Google Fonts, có font hệ thống thay thế khi mất mạng. PDF dùng Noto Sans Regular/Bold trong `public/fonts`, kèm giấy phép OFL. Icon Lucide; nội dung và hình minh họa mẫu không đại diện cho doanh nghiệp thật. Khi nhập ảnh riêng lên website, chỉ dùng nội dung được phép công khai.

@@ -5,9 +5,13 @@ import { chromium } from '@playwright/test';
 import { build } from 'esbuild';
 
 // Release checks never contact the real company endpoint or use real credentials.
-const fixtureBundle = await build({ stdin: { contents: 'export { createSeedData } from "./src/seed.ts";', resolveDir: process.cwd(), loader: 'ts' }, bundle: true, write: false, format: 'esm', platform: 'node' });
-const { createSeedData } = await import(`data:text/javascript;base64,${Buffer.from(fixtureBundle.outputFiles[0].text).toString('base64')}`);
-const fixture = createSeedData();
+const fixtureBundle = await build({ stdin: { contents: 'export { createSeedData } from "./src/seed.ts"; export { ensureCommerce, issueDocument, buildPublicCatalog } from "./src/commerce.ts";', resolveDir: process.cwd(), loader: 'ts' }, bundle: true, write: false, format: 'esm', platform: 'node' });
+const { createSeedData, ensureCommerce, issueDocument, buildPublicCatalog } = await import(`data:text/javascript;base64,${Buffer.from(fixtureBundle.outputFiles[0].text).toString('base64')}`);
+let fixture = ensureCommerce(createSeedData());
+fixture.commerce.company.name = 'Doanh nghiệp kiểm thử phát hành';
+fixture.commerce.publicProfile.name = 'Website công khai kiểm thử';
+fixture = issueDocument(fixture, { kind: 'quotation', orderId: fixture.orders[0].id, date: '2026-10-22' });
+const publicCatalog = buildPublicCatalog(fixture);
 const qaSession = 'qlct1.production_verification.' + 'a'.repeat(64);
 
 // Serve the release under a repository subpath, as GitHub project Pages does.
@@ -31,7 +35,14 @@ try {
     const page = await browser.newPage({ viewport });
     page.on('pageerror', error => failures.push(error.message));
     page.on('response', response => { if (response.url().startsWith(`http://127.0.0.1:${port}`) && response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
-    await page.route('https://script.google.com/macros/s/*/exec', async route => {
+    const requests = [];
+    await page.route('https://script.google.com/macros/s/*/exec**', async route => {
+      requests.push({ method: route.request().method(), url: route.request().url() });
+      if (route.request().method() === 'GET') {
+        const action = new URL(route.request().url()).searchParams.get('action');
+        if (action !== 'catalog') failures.push(`Unexpected anonymous action: ${action}`);
+        return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ ok: true, catalog: publicCatalog }) });
+      }
       const body = route.request().postDataJSON();
       const response = body.action === 'login' && body.username === 'qa-manager' && body.password === 'qa-release-only-password'
         ? { ok: true, token: qaSession, expiresAt: Date.now() + 86400000, username: 'qa-manager' }
@@ -76,8 +87,29 @@ try {
       await page.screenshot({ path: `docs/previews/sheets-${device}-${theme}.png`, fullPage: true, animations: 'disabled' });
       if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) failures.push(`${device}/${theme}: sheets settings overflow`);
     }
+    await page.goto(`http://127.0.0.1:${port}/workshop-demo/#commerce`);
+    await page.getByRole('button', { name: 'Lập chứng từ', exact: true }).waitFor();
+    if (managed) {
+      await page.frameLocator('.commerce-document-frame').getByRole('heading', { name: 'Báo giá', exact: true }).waitFor();
+      const downloadEvent = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Tải PDF', exact: true }).click();
+      const download = await downloadEvent;
+      const pdfBytes = await readFile(await download.path());
+      if (pdfBytes.subarray(0, 5).toString() !== '%PDF-') failures.push(`${device}: invalid downloaded PDF`);
+    }
+    const publicStart = requests.length;
+    await page.goto(`http://127.0.0.1:${port}/workshop-demo/#home`);
+    await page.locator('.public-site').waitFor();
+    if (managed) await page.getByText('Website công khai kiểm thử', { exact: true }).first().waitFor();
+    await page.evaluate(() => document.fonts.ready);
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme);
+      await page.screenshot({ path: `docs/previews/public-${device}-${theme}.png`, fullPage: true });
+      if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) failures.push(`${device}/${theme}: public site overflow`);
+    }
+    if (requests.slice(publicStart).some(request => request.method !== 'GET')) failures.push(`${device}: public route loaded private data`);
     await page.close();
   }
   if (failures.length) throw new Error(failures.join('\n'));
-  console.log('PASS: production assets and lazy payroll module under /workshop-demo/, deep-link reload, managed login or manual demo, desktop/mobile light/dark, no page errors or document overflow. Company endpoints were mocked.');
+  console.log('PASS: production assets under /workshop-demo/, public/private routes, deep-link reload, managed login or manual demo, payroll, commerce, managed PDF/font downloads, desktop/mobile light/dark, no page errors or document overflow. Company endpoints were mocked.');
 } finally { await browser.close(); server.close(); }

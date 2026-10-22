@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL('../', import.meta.url))
 const result = await build({
   absWorkingDir: root,
   stdin: {
-    contents: 'export { validateData } from "./src/domain.ts";',
+    contents: 'export { validateData } from "./src/domain.ts"; export { validateCommerceTransition, buildPublicCatalog, validatePublicCatalog } from "./src/commerce.ts";',
     resolveDir: root,
     sourcefile: 'sheets-validation-entry.ts',
     loader: 'ts',

@@ -22,7 +22,10 @@ var QLCTValidation = (() => {
   // sheets-validation-entry.ts
   var sheets_validation_entry_exports = {};
   __export(sheets_validation_entry_exports, {
-    validateData: () => validateData
+    buildPublicCatalog: () => buildPublicCatalog,
+    validateCommerceTransition: () => validateCommerceTransition,
+    validateData: () => validateData,
+    validatePublicCatalog: () => validatePublicCatalog
   });
 
   // src/payroll.ts
@@ -37,13 +40,13 @@ var QLCTValidation = (() => {
   var validMonth = (v) => typeof v === "string" && /^(20\d{2}|21\d{2})-(0[1-9]|1[0-2])$/.test(v);
   var validDate = (v) => {
     if (typeof v !== "string" || !validMonth(v.slice(0, 7)) || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
-    const date2 = /* @__PURE__ */ new Date(`${v}T12:00:00Z`);
-    return Number.isFinite(date2.getTime()) && date2.toISOString().slice(0, 10) === v;
+    const date3 = /* @__PURE__ */ new Date(`${v}T12:00:00Z`);
+    return Number.isFinite(date3.getTime()) && date3.toISOString().slice(0, 10) === v;
   };
   var unique = (values) => new Set(values).size === values.length;
   var salaryType = (v) => v === "monthly" || v === "daily" || v === "hourly";
   var settingsValid = (v) => object(v) && number(v.standardDays, 31, 1) && number(v.hoursPerDay, 12, 1) && number(v.overtimeWeekday, 10) && number(v.overtimeRestDay, 10) && number(v.overtimeHoliday, 10) && number(v.employeeInsuranceRate, 100);
-  var employedOn = (employee, date2) => date2 >= employee.startDate && (!employee.endDate || date2 <= employee.endDate);
+  var employedOn = (employee, date3) => date3 >= employee.startDate && (!employee.endDate || date3 <= employee.endDate);
   function rowValid(v) {
     if (!object(v) || !required(v.employeeId) || !required(v.code) || !required(v.name) || !string(v.role) || !string(v.department) || !salaryType(v.salaryType) || !money(v.baseSalary) || !number(v.paidDays, 31) || !number(v.workedDays, 31) || !hourKeys.every((key) => number(v[key], 744)) || !moneyKeys.every((key) => money(v[key]) && Number.isInteger(v[key])) || !number(v.netPay, MAX_MONEY, -MAX_MONEY) || !Number.isInteger(v.netPay)) return false;
     return v.grossPay === v.ordinaryPay + v.overtimePay + v.allowancePay + v.bonus && v.netPay === v.grossPay - v.insurance - v.tax - v.deduction - v.advance;
@@ -75,6 +78,116 @@ var QLCTValidation = (() => {
     return unique(data.adjustments.map((v) => `${v.employeeId}|${v.month}`));
   }
 
+  // src/commerce.ts
+  var obj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  var text = (v, max = 2e3) => typeof v === "string" && v.length <= max;
+  var required2 = (v, max = 200) => text(v, max) && v.trim().length > 0;
+  var money2 = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= Number.MAX_SAFE_INTEGER;
+  var integer = (v) => money2(v) && Number.isSafeInteger(v);
+  var date = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v;
+  var timestamp = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(v) && !Number.isNaN(Date.parse(v)) && new Date(v).toISOString() === v;
+  var kinds = ["quotation", "payment_request", "delivery", "receipt"];
+  var methods = ["cash", "bank", "other"];
+  var equalMoney = (a, b) => Math.abs(a - b) <= 1e-6;
+  var companyKeys = ["name", "taxCode", "address", "phone", "email", "website", "bankName", "bankAccount", "bankAccountName"];
+  var profileKeys = ["name", "tagline", "description", "address", "phone", "email", "website", "heroImage"];
+  var productKeys = ["id", "name", "category", "summary", "specification", "material", "unit", "imageUrl", "priceLabel"];
+  function getCommerce(data) {
+    return data.commerce ?? {
+      version: 1,
+      company: { name: "", taxCode: "", address: "", phone: "", email: "", website: "", bankName: "", bankAccount: "", bankAccountName: "" },
+      publicProfile: { name: "", tagline: "", description: "", address: "", phone: "", email: "", website: "", heroImage: "", capabilities: [] },
+      products: [],
+      openingPaid: data.orders.filter((order) => order.paid > 0).map((order) => ({ orderId: order.id, amount: order.paid })),
+      documents: []
+    };
+  }
+  function safePublicUrl(value, media = false) {
+    if (!text(value, 1e3)) return false;
+    if (value === "") return true;
+    if (media && /^(?:\.?\/)?(?:assets|images)\/[A-Za-z0-9_./-]+$/.test(value) && !value.includes("..")) return true;
+    if (!/^https:\/\/[^\s/?#@]+(?:[/?#][^\s]*)?$/.test(value)) return false;
+    return !/[<>"'\\]/.test(value);
+  }
+  function validCompany(value) {
+    return obj(value) && companyKeys.every((key) => text(value[key])) && safePublicUrl(value.website);
+  }
+  function validProfile(value, published = false) {
+    return obj(value) && profileKeys.every((key) => text(value[key], key === "description" ? 4e3 : 1e3)) && (!published || required2(value.name)) && safePublicUrl(value.website) && safePublicUrl(value.heroImage, true) && Array.isArray(value.capabilities) && value.capabilities.length <= 20 && value.capabilities.every((item) => required2(item, 300));
+  }
+  function validProduct(value, publicOnly = false) {
+    return obj(value) && productKeys.every((key) => text(value[key], key === "specification" ? 3e3 : 1e3)) && required2(value.id) && required2(value.name) && safePublicUrl(value.imageUrl, true) && typeof value.featured === "boolean" && (publicOnly || typeof value.published === "boolean");
+  }
+  function validDocument(value) {
+    if (!obj(value) || !required2(value.id) || !required2(value.number) || !kinds.includes(value.kind) || !required2(value.orderId) || !date(value.date) || !timestamp(value.createdAt)) return false;
+    if (!validCompany(value.company) || !required2(value.company.name) || !obj(value.customer) || !required2(value.customer.id) || !required2(value.customer.name) || !["contact", "phone", "email", "address"].every((key) => text(value.customer[key]))) return false;
+    const line = value.order;
+    if (!obj(line) || !required2(line.code) || !required2(line.partName) || !integer(line.quantity) || line.quantity < 1 || !money2(line.unitPrice) || !Number.isSafeInteger(line.quantity * line.unitPrice) || !text(line.material) || !text(line.drawing) || !date(line.dueDate)) return false;
+    if (![value.amount, value.paidAtIssue, value.balanceAtIssue].every(money2) || !integer(value.deliveryQuantity)) return false;
+    const total = line.quantity * line.unitPrice;
+    if (!equalMoney(Number(value.paidAtIssue) + Number(value.balanceAtIssue), total)) return false;
+    if (!text(value.terms, 4e3) || !text(value.note, 4e3) || !text(value.reference, 300) || !methods.includes(value.method)) return false;
+    if (value.status !== "issued" && value.status !== "void") return false;
+    if (value.status === "issued" ? value.voidedAt !== "" || value.voidReason !== "" : !timestamp(value.voidedAt) || !required2(value.voidReason, 1e3)) return false;
+    if (value.kind === "receipt" || value.kind === "payment_request") {
+      if (!integer(value.amount) || value.amount <= 0 || value.amount > Number(value.balanceAtIssue)) return false;
+    } else if (value.amount !== (value.kind === "quotation" ? total : 0)) return false;
+    return value.kind === "delivery" ? value.deliveryQuantity > 0 && value.deliveryQuantity <= line.quantity : value.deliveryQuantity === 0;
+  }
+  function validateCommerce(value, orders) {
+    if (!obj(value) || value.version !== 1 || !validCompany(value.company) || !validProfile(value.publicProfile)) return false;
+    if (!Array.isArray(value.products) || value.products.length > 100 || !value.products.every((product) => validProduct(product)) || new Set(value.products.map((product) => product.id)).size !== value.products.length) return false;
+    if (!Array.isArray(value.documents) || value.documents.length > 2e3 || !value.documents.every(validDocument) || new Set(value.documents.map((doc) => doc.id)).size !== value.documents.length || new Set(value.documents.map((doc) => doc.number)).size !== value.documents.length) return false;
+    if (!Array.isArray(value.openingPaid) || value.openingPaid.length > 5e4) return false;
+    const orderMap = new Map(orders.map((order) => [order.id, order]));
+    const paid = /* @__PURE__ */ new Map(), delivered = /* @__PURE__ */ new Map();
+    for (const opening of value.openingPaid) {
+      if (!obj(opening) || !required2(opening.orderId) || !orderMap.has(opening.orderId) || !money2(opening.amount) || opening.amount <= 0 || paid.has(opening.orderId)) return false;
+      paid.set(opening.orderId, opening.amount);
+    }
+    for (const doc of value.documents) {
+      if (!orderMap.has(doc.orderId)) return false;
+      if (doc.status === "void") continue;
+      if (doc.kind === "receipt") paid.set(doc.orderId, (paid.get(doc.orderId) ?? 0) + doc.amount);
+      if (doc.kind === "delivery") delivered.set(doc.orderId, (delivered.get(doc.orderId) ?? 0) + doc.deliveryQuantity);
+    }
+    return orders.every((order) => equalMoney(order.paid, paid.get(order.id) ?? 0) && (delivered.get(order.id) ?? 0) <= order.quantity);
+  }
+  function canonical(value) {
+    if (Array.isArray(value)) return "[" + value.map(canonical).join(",") + "]";
+    if (obj(value)) return "{" + Object.keys(value).sort().map((key) => JSON.stringify(key) + ":" + canonical(value[key])).join(",") + "}";
+    return JSON.stringify(value);
+  }
+  function validateCommerceTransition(previous, next) {
+    if (!previous?.commerce) {
+      if (!next.commerce || !previous) return true;
+      const opening = new Map(next.commerce.openingPaid.map((item) => [item.orderId, item.amount]));
+      return opening.size === previous.orders.filter((order) => order.paid > 0).length && previous.orders.every((order) => (opening.get(order.id) ?? 0) === order.paid);
+    }
+    if (!next.commerce || canonical(previous.commerce.openingPaid) !== canonical(next.commerce.openingPaid)) return false;
+    const nextDocuments = new Map(next.commerce.documents.map((doc) => [doc.id, doc]));
+    for (const old of previous.commerce.documents) {
+      const current = nextDocuments.get(old.id);
+      if (!current) return false;
+      if (canonical(old) === canonical(current)) continue;
+      if (old.status !== "issued" || current.status !== "void" || !required2(current.voidReason, 1e3) || !timestamp(current.voidedAt)) return false;
+      if (canonical({ ...current, status: old.status, voidedAt: old.voidedAt, voidReason: old.voidReason }) !== canonical(old)) return false;
+    }
+    return true;
+  }
+  function buildPublicCatalog(data, publishedAt = (/* @__PURE__ */ new Date()).toISOString()) {
+    const draft = getCommerce(data), source = draft.publicProfile;
+    const profile = { name: source.name, tagline: source.tagline, description: source.description, address: source.address, phone: source.phone, email: source.email, website: source.website, heroImage: source.heroImage, capabilities: source.capabilities.map((item) => item) };
+    const products = draft.products.filter((item) => item.published).map((item) => ({ id: item.id, name: item.name, category: item.category, summary: item.summary, specification: item.specification, material: item.material, unit: item.unit, imageUrl: item.imageUrl, priceLabel: item.priceLabel, featured: item.featured }));
+    const result = { version: 1, publishedAt, profile, products };
+    if (!validatePublicCatalog(result)) throw new Error("Nhập tên doanh nghiệp và kiểm tra nội dung công khai trước khi xuất bản.");
+    return result;
+  }
+  function validatePublicCatalog(value) {
+    const keys = (item, allowed) => Object.keys(item).every((key) => allowed.includes(key));
+    return obj(value) && keys(value, ["version", "publishedAt", "profile", "products"]) && value.version === 1 && timestamp(value.publishedAt) && validProfile(value.profile, true) && keys(value.profile, [...profileKeys, "capabilities"]) && Array.isArray(value.products) && value.products.length <= 100 && value.products.every((product) => validProduct(product, true) && keys(product, [...productKeys, "featured"])) && new Set(value.products.map((product) => product.id)).size === value.products.length;
+  }
+
   // src/domain.ts
   var statusLabels = {
     pending: "Chờ sản xuất",
@@ -84,10 +197,10 @@ var QLCTValidation = (() => {
     delivered: "Đã giao"
   };
   var record = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
-  var text = (value) => typeof value === "string" && value.length <= 1e4;
-  var requiredText = (value) => text(value) && value.trim().length > 0;
+  var text2 = (value) => typeof value === "string" && value.length <= 1e4;
+  var requiredText = (value) => text2(value) && value.trim().length > 0;
   var number2 = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER;
-  var date = (value) => {
+  var date2 = (value) => {
     if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
     const parsed = /* @__PURE__ */ new Date(`${value}T12:00:00Z`);
     return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
@@ -102,19 +215,19 @@ var QLCTValidation = (() => {
     for (const items of [orders, materials, customers, movements]) {
       if (!items.every((item) => record(item) && requiredText(item.id)) || !uniqueIds(items)) return false;
     }
-    if (!customers.every((customer) => requiredText(customer.name) && ["contact", "phone", "email", "address"].every((key) => text(customer[key])))) return false;
-    if (!materials.every((material) => ["code", "name", "unit"].every((key) => requiredText(material[key])) && text(material.spec) && ["stock", "minStock", "unitCost"].every((key) => number2(material[key])))) return false;
+    if (!customers.every((customer) => requiredText(customer.name) && ["contact", "phone", "email", "address"].every((key) => text2(customer[key])))) return false;
+    if (!materials.every((material) => ["code", "name", "unit"].every((key) => requiredText(material[key])) && text2(material.spec) && ["stock", "minStock", "unitCost"].every((key) => number2(material[key])))) return false;
     const customerIds = new Set(customers.map((customer) => customer.id));
     const materialIds = new Set(materials.map((material) => material.id));
     if (!orders.every((order) => {
       if (!["code", "customerId", "partName"].every((key) => requiredText(order[key])) || !customerIds.has(order.customerId)) return false;
-      if (!["drawing", "material", "machine", "operator", "notes"].every((key) => text(order[key]))) return false;
+      if (!["drawing", "material", "machine", "operator", "notes"].every((key) => text2(order[key]))) return false;
       if (!number2(order.quantity) || !Number.isInteger(order.quantity) || order.quantity < 1 || !number2(order.unitPrice) || !number2(order.paid)) return false;
       if (!number2(order.completedQuantity) || !Number.isInteger(order.completedQuantity) || order.completedQuantity > order.quantity) return false;
       if (!Number.isSafeInteger(order.quantity * order.unitPrice) || order.paid > order.quantity * order.unitPrice) return false;
-      return date(order.dueDate) && date(order.createdAt) && Object.prototype.hasOwnProperty.call(statusLabels, order.status) && ["normal", "high"].includes(order.priority);
+      return date2(order.dueDate) && date2(order.createdAt) && Object.prototype.hasOwnProperty.call(statusLabels, order.status) && ["normal", "high"].includes(order.priority);
     })) return false;
-    return movements.every((movement) => materialIds.has(movement.materialId) && ["in", "out"].includes(movement.type) && number2(movement.quantity) && movement.quantity > 0 && date(movement.date) && text(movement.note));
+    return movements.every((movement) => materialIds.has(movement.materialId) && ["in", "out"].includes(movement.type) && number2(movement.quantity) && movement.quantity > 0 && date2(movement.date) && text2(movement.note)) && (value.commerce === void 0 || validateCommerce(value.commerce, orders));
   }
   return __toCommonJS(sheets_validation_entry_exports);
 })();
@@ -136,7 +249,7 @@ var QLCTCrypto=(()=>{var C=Object.defineProperty;var N=Object.getOwnPropertyDesc
  * LAST, after flushing and checking persisted contents. Projection tabs are
  * reports only: editing them does NOT update the app.
  */
-var QLCT = { prefix: 'QLCT_', maxBytes: 2 * 1024 * 1024, chunkSize: 40000 };
+var QLCT = { prefix: 'QLCT_', maxBytes: 2 * 1024 * 1024, publicMaxBytes: 256 * 1024, chunkSize: 40000 };
 
 /** Run manually in the bound spreadsheet once. Re-running preserves data/key. */
 function setup() {
@@ -161,8 +274,18 @@ function setup() {
   } finally { lock.releaseLock(); }
 }
 
-function doGet() {
-  return json_({ ok: false, code: 'UNAUTHORIZED', message: 'Use the application to connect.' });
+function doGet(e) {
+  if (!e || !e.parameter || e.parameter.action !== 'catalog') return json_({ ok: false, code: 'UNAUTHORIZED', message: 'Use the application to connect.' });
+  var lock;
+  try {
+    var config = config_();
+    lock = LockService.getScriptLock();
+    if (!lock.tryLock(10000)) fail_('BUSY', 'Another operation is running. Try again shortly.');
+    // Public reads NEVER open the private snapshot, even for validation/fallback.
+    var catalog = readPublic_(SpreadsheetApp.openById(config.spreadsheetId), config);
+    return json_({ ok: true, catalog: catalog });
+  } catch (error) { return errorResponse_(error); }
+  finally { if (lock && lock.hasLock()) lock.releaseLock(); }
 }
 
 function doPost(e) {
@@ -174,6 +297,24 @@ function doPost(e) {
     var request;
     try { request = JSON.parse(raw); } catch (_) { fail_('INVALID_DATA', 'Invalid JSON request.'); }
     if (!object_(request)) fail_('INVALID_DATA', 'Invalid request.');
+    if (request.action === 'publishCatalog') {
+      if (raw.length > 2000) fail_('LIMIT', 'Publication request is too large.');
+      authorize_(request.token, config, true);
+      if (!Number.isSafeInteger(request.expectedRevision) || request.expectedRevision < 0) fail_('INVALID_DATA', 'A loaded revision is required.');
+      lock = LockService.getScriptLock();
+      if (!lock.tryLock(10000)) fail_('BUSY', 'Another operation is running. Try again shortly.');
+      config = config_();
+      authorize_(request.token, config, true);
+      var publicSourceSheet = SpreadsheetApp.openById(config.spreadsheetId);
+      var publicSource = readCommitted_(publicSourceSheet, config);
+      if (request.expectedRevision !== publicSource.revision) fail_('CONFLICT', 'Reload the current saved draft before publishing.');
+      if (!publicSource.data) fail_('INVALID_DATA', 'Save the company profile before publishing.');
+      var publicCatalog;
+      try { publicCatalog = QLCTValidation.buildPublicCatalog(publicSource.data, new Date().toISOString()); }
+      catch (_) { fail_('INVALID_DATA', 'Check the public profile and product catalog before publishing.'); }
+      writePublic_(publicSourceSheet, config, publicCatalog);
+      return json_({ ok: true, publishedAt: publicCatalog.publishedAt });
+    }
     if (['login', 'configureLogin', 'exchange', 'changePassword'].indexOf(request.action) !== -1) {
       if (raw.length > 2000) fail_('LIMIT', 'Login request is too large.');
       if (request.action === 'changePassword') authorize_(request.token, config, true);
@@ -204,6 +345,7 @@ function doPost(e) {
     var current = readCommitted_(ss, config);
     if (request.action === 'load') return json_({ ok: true, revision: current.revision, data: current.data, spreadsheetUrl: ss.getUrl() });
     if (request.expectedRevision !== current.revision) fail_('CONFLICT', 'Another device has saved newer data. Download your local backup, then load the latest version.');
+    if (!QLCTValidation.validateCommerceTransition(current.data, request.data)) fail_('IMMUTABLE_HISTORY', 'Issued documents and opening balances cannot be removed or rewritten. Void an issued document with a reason instead.');
     if (current.revision >= Number.MAX_SAFE_INTEGER) fail_('LIMIT', 'Revision limit reached.');
     var slot = current.slot === 'A' ? 'B' : 'A';
     var encoded = Utilities.base64Encode(serialized, Utilities.Charset.UTF_8);
@@ -223,11 +365,43 @@ function doPost(e) {
     try { project_(ss, config, request.data, manifest.revision); }
     catch (_) { result.warning = 'Data saved. Some report tabs could not be refreshed; load from the app remains authoritative.'; }
     return json_(result);
-  } catch (error) {
-    var codes = ['UNAUTHORIZED', 'CONFLICT', 'INVALID_DATA', 'LIMIT', 'BUSY', 'CONFIG', 'INTERNAL', 'AUTH_FAILED', 'RATE_LIMITED', 'LOGIN_NOT_CONFIGURED', 'LOGIN_ALREADY_CONFIGURED', 'SESSION_EXPIRED', 'CURRENT_PASSWORD_INVALID'];
-    var known = error && codes.indexOf(error.code) !== -1;
-    return json_({ ok: false, code: known ? error.code : 'INTERNAL', message: known ? error.message : 'Google Sheets operation failed. Check the deployment and try loading before saving again.' });
-  } finally { if (lock && lock.hasLock()) lock.releaseLock(); }
+  } catch (error) { return errorResponse_(error); }
+  finally { if (lock && lock.hasLock()) lock.releaseLock(); }
+}
+
+function publicManifest_() {
+  var raw = PropertiesService.getScriptProperties().getProperty('QLCT_PUBLIC_COMMIT');
+  if (!raw) return null;
+  var manifest;
+  try { manifest = JSON.parse(raw); } catch (_) { fail_('CONFIG', 'Published catalog is invalid.'); }
+  if (!object_(manifest) || ['PA', 'PB'].indexOf(manifest.slot) < 0 || !Number.isInteger(manifest.chunks) || manifest.chunks < 1 || manifest.chunks > 10 || typeof manifest.checksum !== 'string') fail_('CONFIG', 'Published catalog is invalid.');
+  return manifest;
+}
+function readPublic_(ss, config) {
+  var manifest = publicManifest_();
+  if (!manifest) return null;
+  var serialized = readBuffer_(ss, config, manifest);
+  if (Utilities.newBlob(serialized).getBytes().length > QLCT.publicMaxBytes) fail_('CONFIG', 'Published catalog exceeds its limit.');
+  var catalog;
+  try { catalog = JSON.parse(serialized); } catch (_) { fail_('CONFIG', 'Published catalog is invalid.'); }
+  // Strict public keys also defend against manually modified projection tabs.
+  if (!QLCTValidation.validatePublicCatalog(catalog)) fail_('CONFIG', 'Published catalog has invalid fields.');
+  return catalog;
+}
+function writePublic_(ss, config, catalog) {
+  var serialized = JSON.stringify(catalog);
+  if (Utilities.newBlob(serialized).getBytes().length > QLCT.publicMaxBytes) fail_('LIMIT', 'Public catalog exceeds 256 KiB. Shorten text or publish fewer products.');
+  var current = publicManifest_();
+  var slot = current && current.slot === 'PA' ? 'PB' : 'PA';
+  var encoded = Utilities.base64Encode(serialized, Utilities.Charset.UTF_8), chunks = [];
+  for (var offset = 0; offset < encoded.length; offset += QLCT.chunkSize) chunks.push(['b64:' + encoded.slice(offset, offset + QLCT.chunkSize)]);
+  var sheet = buffer_(ss, config, slot, true);
+  if (sheet.getMaxRows() < chunks.length + 1) sheet.insertRowsAfter(sheet.getMaxRows(), chunks.length + 1 - sheet.getMaxRows());
+  sheet.getRange(2, 1, chunks.length, 1).setValues(chunks);
+  SpreadsheetApp.flush();
+  var manifest = { slot: slot, chunks: chunks.length, checksum: checksum_(serialized) };
+  if (readBuffer_(ss, config, manifest) !== serialized) fail_('INTERNAL', 'Published catalog verification failed.');
+  PropertiesService.getScriptProperties().setProperty('QLCT_PUBLIC_COMMIT', JSON.stringify(manifest));
 }
 
 function config_() {
@@ -371,6 +545,11 @@ function authorize_(token, config, sessionOnly) {
   if (!account || payload.u !== account.username || payload.v !== account.version || payload.e <= Date.now() || payload.e > Date.now() + 30 * 24 * 60 * 60 * 1000) fail_('SESSION_EXPIRED', 'Session expired. Please sign in again.');
 }
 function json_(value) { return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON); }
+function errorResponse_(error) {
+  var codes = ['UNAUTHORIZED', 'CONFLICT', 'INVALID_DATA', 'LIMIT', 'BUSY', 'CONFIG', 'INTERNAL', 'AUTH_FAILED', 'RATE_LIMITED', 'LOGIN_NOT_CONFIGURED', 'LOGIN_ALREADY_CONFIGURED', 'SESSION_EXPIRED', 'CURRENT_PASSWORD_INVALID', 'IMMUTABLE_HISTORY'];
+  var known = error && codes.indexOf(error.code) !== -1;
+  return json_({ ok: false, code: known ? error.code : 'INTERNAL', message: known ? error.message : 'Google Sheets operation failed. Check the deployment and try loading before saving again.' });
+}
 function fail_(code, message) { var error = new Error(message); error.code = code; throw error; }
 function object_(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }
 
@@ -408,6 +587,12 @@ function project_(ss, config, data, revision) {
     sections.DieuChinhLuong = data.payroll.adjustments;
     sections.KyLuong = data.payroll.periods;
     sections.CauHinhLuong = [data.payroll.settings];
+  }
+  if (data.commerce) {
+    sections.HoSoCongTy = [data.commerce.company];
+    sections.ChungTu = data.commerce.documents;
+    sections.SoDuThuDauKy = data.commerce.openingPaid;
+    sections.DanhMucGioiThieu = data.commerce.products;
   }
   // Also clear obsolete payroll projections when loading an old non-payroll backup.
   ['NhanVien', 'ChamCong', 'PhuCap', 'DieuChinhLuong', 'KyLuong', 'CauHinhLuong'].forEach(function (name) { if (!sections[name]) sections[name] = []; });

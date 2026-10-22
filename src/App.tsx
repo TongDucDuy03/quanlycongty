@@ -17,6 +17,7 @@ import {
   CreditCard,
   Factory,
   FileText,
+  Globe,
   LayoutDashboard,
   Menu,
   Moon,
@@ -50,6 +51,7 @@ import { createSeedData } from "./seed";
 import SheetsConnection from "./SheetsConnection";
 import { CompanyAccount } from './CompanyGate';
 import { companyManaged, getCompanyToken } from './company-config';
+import { getCommerce, issueDocument, validateCommerceTransition, type DocumentKind, type PaymentMethod } from './commerce';
 import {
   cloudAllowed,
   assertLocalDataCurrent,
@@ -63,6 +65,8 @@ import {
 } from "./storage";
 
 const PayrollWorkspace = lazy(() => import("./PayrollWorkspace"));
+const CommerceWorkspace = lazy(() => import('./CommerceWorkspace'));
+const SiteWorkspace = lazy(() => import('./SiteWorkspace'));
 
 type Page =
   | "overview"
@@ -72,6 +76,8 @@ type Page =
   | "customers"
   | "finance"
   | "payroll"
+  | "commerce"
+  | "website"
   | "settings";
 type Modal =
   | { type: "order"; order?: Order }
@@ -89,6 +95,8 @@ const nav = [
   { id: "customers", label: "Khách hàng", icon: Users },
   { id: "finance", label: "Thu chi & công nợ", icon: CreditCard },
   { id: "payroll", label: "Nhân sự & tiền lương", icon: UsersRound },
+  { id: "commerce", label: "Bán hàng & chứng từ", icon: FileText },
+  { id: "website", label: "Trang giới thiệu", icon: Globe },
 ] as const;
 const statuses: OrderStatus[] = [
   "pending",
@@ -186,6 +194,14 @@ export default function App() {
   currentDataRef.current = data;
   const [sheetsStatus, setSheetsStatus] = useState("");
   const [page, setPage] = useState<Page>(readPage);
+  const [documentTarget, setDocumentTarget] = useState<{ orderId: string; kind: DocumentKind }>();
+  const workspaceDirty = useRef(false);
+  const allowWorkspaceLeave = () => !workspaceDirty.current || window.confirm('Biểu mẫu có thay đổi chưa lưu. Bỏ thay đổi để tiếp tục?');
+  useEffect(() => {
+    const guard = (event: BeforeUnloadEvent) => { if (workspaceDirty.current) { event.preventDefault(); event.returnValue = ''; } };
+    window.addEventListener('beforeunload', guard);
+    return () => window.removeEventListener('beforeunload', guard);
+  }, []);
   const [theme, setTheme] = useState(() => {
     try {
       return localStorage.getItem("xuong-viet.theme") || "light";
@@ -288,6 +304,8 @@ export default function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
   const go = (p: Page) => {
+    if (p !== page && !allowWorkspaceLeave()) return;
+    if (p !== 'commerce') setDocumentTarget(undefined);
     setPage(p);
     history.pushState(null, "", `#${p}`);
     setMenu(false);
@@ -295,10 +313,14 @@ export default function App() {
     setFilter("all");
     setAlerts(false);
   };
-  const commit = (next: Data, message: string) => {
+  const commit = (next: Data, message: string, authoritativeRemote = false) => {
     if (!mounted.current || companyManaged && !getCompanyToken()) return false;
     if (!validateData(next)) {
       setNotice("Dữ liệu chưa hợp lệ. Vui lòng kiểm tra các giá trị nhập.");
+      return false;
+    }
+    if (!authoritativeRemote && !validateCommerceTransition(currentDataRef.current, next)) {
+      setNotice('Không thể sửa hoặc xóa lịch sử chứng từ và số dư đầu kỳ. Hãy hủy phiếu có lý do để điều chỉnh, hoặc nhận lại bản mới nhất từ Google Sheets.');
       return false;
     }
     try {
@@ -323,6 +345,11 @@ export default function App() {
       );
       return false;
     }
+  };
+  const openDocument = (orderId: string, kind: DocumentKind) => {
+    setDocumentTarget({ orderId, kind });
+    setModal(null);
+    go('commerce');
   };
   const active = data.orders.filter((o) => o.status !== "delivered"),
     late = active.filter((o) => isOverdue(o)),
@@ -505,7 +532,7 @@ export default function App() {
           throw Error("Chưa có kho đám mây. Bấm “Khởi tạo kho” để tạo.");
         if (!validateData(row.data))
           throw Error("Dữ liệu đám mây không đúng định dạng.");
-        if (commit(row.data, "Đã tải dữ liệu từ đám mây")) {
+        if (commit(row.data, "Đã tải dữ liệu từ đám mây", true)) {
           rememberRevision(row.revision);
           setDirty(false);
           setCloudMessage("Đã tải thành công.");
@@ -582,7 +609,7 @@ export default function App() {
         >
           <X size={20} />
         </button>
-        <a className="brand" href="#overview" onClick={() => go("overview")}>
+        <a className="brand" href="#overview" onClick={event => { event.preventDefault(); go("overview"); }}>
           <span className="brand-mark">
             <Factory size={25} />
           </span>
@@ -594,8 +621,8 @@ export default function App() {
         <div className="workspace">
           <span className="workspace-avatar">AP</span>
           <div>
-            <strong>Cơ khí An Phát</strong>
-            <small>Không gian làm việc mẫu</small>
+            <strong>{getCommerce(data).company.name || 'Không gian doanh nghiệp'}</strong>
+            <small>{companyManaged ? 'Quản lý nội bộ' : 'Không gian làm việc mẫu'}</small>
           </div>
           <ChevronDown size={16} />
         </div>
@@ -616,6 +643,7 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
+          <a className="nav-item" href="#home" onClick={event => { if (!allowWorkspaceLeave()) event.preventDefault(); }}><Globe size={19} />Xem website công khai</a>
           <div className="help-card">
             <span className="help-icon">
               <ShieldCheck size={20} />
@@ -723,7 +751,7 @@ export default function App() {
               <div className="eyebrow">
                 {page === "overview"
                   ? "XƯỞNG HOẠT ĐỘNG, BẠN CHỦ ĐỘNG"
-                  : "CƠ KHÍ AN PHÁT"}
+                  : "QUẢN LÝ DOANH NGHIỆP"}
               </div>
               <h1>
                 {page === "overview"
@@ -749,13 +777,15 @@ export default function App() {
                       "Nắm rõ giá trị đơn hàng, khoản đã thu và còn phải thu.",
                     payroll:
                       "Quản lý nhân sự, chấm công và tính lương rõ ràng theo từng tháng.",
+                    commerce: "Báo giá, giao hàng, đề nghị thanh toán và phiếu thu theo từng đơn.",
+                    website: "Giới thiệu doanh nghiệp và sản phẩm đến khách hàng.",
                     settings:
                       "Quản lý dữ liệu, sao lưu và kết nối không gian của bạn.",
                   }[page]
                 }
               </p>
             </div>
-            {page !== "payroll" && (
+            {!["payroll", "commerce", "website"].includes(page) && (
               <div className="heading-actions">
                 {page === "overview" ? (
                   <span className="date-chip">
@@ -1500,6 +1530,8 @@ export default function App() {
               />
             </Suspense>
           )}
+          {page === 'commerce' && <Suspense fallback={<p role="status">Đang mở chứng từ…</p>}><CommerceWorkspace data={data} onCommit={commit} initialOrderId={documentTarget?.orderId} initialKind={documentTarget?.kind} onDirtyChange={value => { workspaceDirty.current = value; }} /></Suspense>}
+          {page === 'website' && <Suspense fallback={<p role="status">Đang mở nội dung website…</p>}><SiteWorkspace data={data} onCommit={commit} onDirtyChange={value => { workspaceDirty.current = value; }} /></Suspense>}
           <div hidden={page !== "settings"}>
             <div className="settings-grid">
               <CompanyAccount />
@@ -1533,7 +1565,7 @@ export default function App() {
                     setNotice("Dữ liệu trên máy vừa thay đổi. Hãy sao lưu và tải lại từ Google Sheets.");
                     return false;
                   }
-                  return commit(next, "Đã tải dữ liệu từ Google Sheets");
+                  return commit(next, "Đã tải dữ liệu từ Google Sheets", true);
                 }}
               />
               <section className="card settings-card">
@@ -1604,7 +1636,7 @@ export default function App() {
                     }}
                   />
                 </div>
-                {!companyManaged && <><hr />
+                {!companyManaged && !data.commerce && <><hr />
                 <button
                   className="text-button danger"
                   onClick={() => setModal({ type: "reset" })}
@@ -1909,6 +1941,9 @@ export default function App() {
                     </div>
                   )}
                   <div className="modal-actions">
+                    <button className="button secondary" onClick={() => openDocument(o.id, 'quotation')}>Lập báo giá</button>
+                    <button className="button secondary" onClick={() => openDocument(o.id, 'delivery')}>Phiếu giao hàng</button>
+                    {orderBalance(o) > 0 && <button className="button secondary" onClick={() => openDocument(o.id, 'payment_request')}>Đề nghị thanh toán</button>}
                     <button
                       className="button secondary"
                       onClick={() => setModal({ type: "order", order: o })}
@@ -2056,9 +2091,8 @@ export default function App() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                const amount = Number(
-                  new FormData(e.currentTarget).get("amount"),
-                );
+                const form = new FormData(e.currentTarget);
+                const amount = Number(form.get('amount'));
                 const o = data.orders.find((v) => v.id === modal.order.id)!;
                 if (
                   !Number.isFinite(amount) ||
@@ -2070,18 +2104,12 @@ export default function App() {
                   );
                   return;
                 }
-                if (
-                  commit(
-                    {
-                      ...data,
-                      orders: data.orders.map((v) =>
-                        v.id === o.id ? { ...v, paid: v.paid + amount } : v,
-                      ),
-                    },
-                    "Đã ghi nhận thanh toán",
-                  )
-                )
-                  setModal(null);
+                try {
+                  const commerce = getCommerce(data);
+                  const source = { ...data, commerce: { ...commerce, company: { ...commerce.company, name: String(form.get('companyName') || commerce.company.name).trim() } } };
+                  const next = issueDocument(source, { kind: 'receipt', orderId: o.id, date: String(form.get('date')), amount, method: String(form.get('method')) as PaymentMethod, reference: String(form.get('reference') || ''), note: String(form.get('note') || '') });
+                  if (commit(next, 'Đã ghi nhận thanh toán. Xem và tải phiếu thu tại Bán hàng & chứng từ.')) setModal(null);
+                } catch (error) { setNotice(error instanceof Error ? error.message : 'Không thể lập phiếu thu.'); }
               }}
             >
               <div className="modal-body">
@@ -2105,9 +2133,13 @@ export default function App() {
                   />
                 </Field>
                 <p className="field-hint">
-                  Bản demo lưu tổng tiền đã thu theo đơn; chưa có sổ lịch sử
-                  phiếu thu.
+                  Mỗi lần thu tạo một phiếu thu riêng. Có thể in, tải PDF và hủy có lý do tại Bán hàng & chứng từ.
                 </p>
+                {!getCommerce(data).company.name && <Field label="Tên doanh nghiệp trên phiếu *"><input name="companyName" required maxLength={200} defaultValue={companyManaged ? '' : 'Cơ khí An Phát (demo)'} /></Field>}
+                <Field label="Ngày thu tiền *"><input name="date" type="date" required defaultValue={today()} /></Field>
+                <Field label="Hình thức thanh toán"><select name="method"><option value="cash">Tiền mặt</option><option value="bank">Chuyển khoản</option><option value="other">Khác</option></select></Field>
+                <Field label="Mã giao dịch"><input name="reference" maxLength={200} /></Field>
+                <Field label="Ghi chú phiếu thu"><textarea name="note" maxLength={3000} /></Field>
               </div>
               <div className="modal-actions">
                 <button

@@ -13,7 +13,7 @@
  * LAST, after flushing and checking persisted contents. Projection tabs are
  * reports only: editing them does NOT update the app.
  */
-var QLCT = { prefix: 'QLCT_', maxBytes: 2 * 1024 * 1024, chunkSize: 40000 };
+var QLCT = { prefix: 'QLCT_', maxBytes: 2 * 1024 * 1024, publicMaxBytes: 256 * 1024, chunkSize: 40000 };
 
 /** Run manually in the bound spreadsheet once. Re-running preserves data/key. */
 function setup() {
@@ -38,8 +38,18 @@ function setup() {
   } finally { lock.releaseLock(); }
 }
 
-function doGet() {
-  return json_({ ok: false, code: 'UNAUTHORIZED', message: 'Use the application to connect.' });
+function doGet(e) {
+  if (!e || !e.parameter || e.parameter.action !== 'catalog') return json_({ ok: false, code: 'UNAUTHORIZED', message: 'Use the application to connect.' });
+  var lock;
+  try {
+    var config = config_();
+    lock = LockService.getScriptLock();
+    if (!lock.tryLock(10000)) fail_('BUSY', 'Another operation is running. Try again shortly.');
+    // Public reads NEVER open the private snapshot, even for validation/fallback.
+    var catalog = readPublic_(SpreadsheetApp.openById(config.spreadsheetId), config);
+    return json_({ ok: true, catalog: catalog });
+  } catch (error) { return errorResponse_(error); }
+  finally { if (lock && lock.hasLock()) lock.releaseLock(); }
 }
 
 function doPost(e) {
@@ -51,6 +61,24 @@ function doPost(e) {
     var request;
     try { request = JSON.parse(raw); } catch (_) { fail_('INVALID_DATA', 'Invalid JSON request.'); }
     if (!object_(request)) fail_('INVALID_DATA', 'Invalid request.');
+    if (request.action === 'publishCatalog') {
+      if (raw.length > 2000) fail_('LIMIT', 'Publication request is too large.');
+      authorize_(request.token, config, true);
+      if (!Number.isSafeInteger(request.expectedRevision) || request.expectedRevision < 0) fail_('INVALID_DATA', 'A loaded revision is required.');
+      lock = LockService.getScriptLock();
+      if (!lock.tryLock(10000)) fail_('BUSY', 'Another operation is running. Try again shortly.');
+      config = config_();
+      authorize_(request.token, config, true);
+      var publicSourceSheet = SpreadsheetApp.openById(config.spreadsheetId);
+      var publicSource = readCommitted_(publicSourceSheet, config);
+      if (request.expectedRevision !== publicSource.revision) fail_('CONFLICT', 'Reload the current saved draft before publishing.');
+      if (!publicSource.data) fail_('INVALID_DATA', 'Save the company profile before publishing.');
+      var publicCatalog;
+      try { publicCatalog = QLCTValidation.buildPublicCatalog(publicSource.data, new Date().toISOString()); }
+      catch (_) { fail_('INVALID_DATA', 'Check the public profile and product catalog before publishing.'); }
+      writePublic_(publicSourceSheet, config, publicCatalog);
+      return json_({ ok: true, publishedAt: publicCatalog.publishedAt });
+    }
     if (['login', 'configureLogin', 'exchange', 'changePassword'].indexOf(request.action) !== -1) {
       if (raw.length > 2000) fail_('LIMIT', 'Login request is too large.');
       if (request.action === 'changePassword') authorize_(request.token, config, true);
@@ -81,6 +109,7 @@ function doPost(e) {
     var current = readCommitted_(ss, config);
     if (request.action === 'load') return json_({ ok: true, revision: current.revision, data: current.data, spreadsheetUrl: ss.getUrl() });
     if (request.expectedRevision !== current.revision) fail_('CONFLICT', 'Another device has saved newer data. Download your local backup, then load the latest version.');
+    if (!QLCTValidation.validateCommerceTransition(current.data, request.data)) fail_('IMMUTABLE_HISTORY', 'Issued documents and opening balances cannot be removed or rewritten. Void an issued document with a reason instead.');
     if (current.revision >= Number.MAX_SAFE_INTEGER) fail_('LIMIT', 'Revision limit reached.');
     var slot = current.slot === 'A' ? 'B' : 'A';
     var encoded = Utilities.base64Encode(serialized, Utilities.Charset.UTF_8);
@@ -100,11 +129,43 @@ function doPost(e) {
     try { project_(ss, config, request.data, manifest.revision); }
     catch (_) { result.warning = 'Data saved. Some report tabs could not be refreshed; load from the app remains authoritative.'; }
     return json_(result);
-  } catch (error) {
-    var codes = ['UNAUTHORIZED', 'CONFLICT', 'INVALID_DATA', 'LIMIT', 'BUSY', 'CONFIG', 'INTERNAL', 'AUTH_FAILED', 'RATE_LIMITED', 'LOGIN_NOT_CONFIGURED', 'LOGIN_ALREADY_CONFIGURED', 'SESSION_EXPIRED', 'CURRENT_PASSWORD_INVALID'];
-    var known = error && codes.indexOf(error.code) !== -1;
-    return json_({ ok: false, code: known ? error.code : 'INTERNAL', message: known ? error.message : 'Google Sheets operation failed. Check the deployment and try loading before saving again.' });
-  } finally { if (lock && lock.hasLock()) lock.releaseLock(); }
+  } catch (error) { return errorResponse_(error); }
+  finally { if (lock && lock.hasLock()) lock.releaseLock(); }
+}
+
+function publicManifest_() {
+  var raw = PropertiesService.getScriptProperties().getProperty('QLCT_PUBLIC_COMMIT');
+  if (!raw) return null;
+  var manifest;
+  try { manifest = JSON.parse(raw); } catch (_) { fail_('CONFIG', 'Published catalog is invalid.'); }
+  if (!object_(manifest) || ['PA', 'PB'].indexOf(manifest.slot) < 0 || !Number.isInteger(manifest.chunks) || manifest.chunks < 1 || manifest.chunks > 10 || typeof manifest.checksum !== 'string') fail_('CONFIG', 'Published catalog is invalid.');
+  return manifest;
+}
+function readPublic_(ss, config) {
+  var manifest = publicManifest_();
+  if (!manifest) return null;
+  var serialized = readBuffer_(ss, config, manifest);
+  if (Utilities.newBlob(serialized).getBytes().length > QLCT.publicMaxBytes) fail_('CONFIG', 'Published catalog exceeds its limit.');
+  var catalog;
+  try { catalog = JSON.parse(serialized); } catch (_) { fail_('CONFIG', 'Published catalog is invalid.'); }
+  // Strict public keys also defend against manually modified projection tabs.
+  if (!QLCTValidation.validatePublicCatalog(catalog)) fail_('CONFIG', 'Published catalog has invalid fields.');
+  return catalog;
+}
+function writePublic_(ss, config, catalog) {
+  var serialized = JSON.stringify(catalog);
+  if (Utilities.newBlob(serialized).getBytes().length > QLCT.publicMaxBytes) fail_('LIMIT', 'Public catalog exceeds 256 KiB. Shorten text or publish fewer products.');
+  var current = publicManifest_();
+  var slot = current && current.slot === 'PA' ? 'PB' : 'PA';
+  var encoded = Utilities.base64Encode(serialized, Utilities.Charset.UTF_8), chunks = [];
+  for (var offset = 0; offset < encoded.length; offset += QLCT.chunkSize) chunks.push(['b64:' + encoded.slice(offset, offset + QLCT.chunkSize)]);
+  var sheet = buffer_(ss, config, slot, true);
+  if (sheet.getMaxRows() < chunks.length + 1) sheet.insertRowsAfter(sheet.getMaxRows(), chunks.length + 1 - sheet.getMaxRows());
+  sheet.getRange(2, 1, chunks.length, 1).setValues(chunks);
+  SpreadsheetApp.flush();
+  var manifest = { slot: slot, chunks: chunks.length, checksum: checksum_(serialized) };
+  if (readBuffer_(ss, config, manifest) !== serialized) fail_('INTERNAL', 'Published catalog verification failed.');
+  PropertiesService.getScriptProperties().setProperty('QLCT_PUBLIC_COMMIT', JSON.stringify(manifest));
 }
 
 function config_() {
@@ -248,6 +309,11 @@ function authorize_(token, config, sessionOnly) {
   if (!account || payload.u !== account.username || payload.v !== account.version || payload.e <= Date.now() || payload.e > Date.now() + 30 * 24 * 60 * 60 * 1000) fail_('SESSION_EXPIRED', 'Session expired. Please sign in again.');
 }
 function json_(value) { return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON); }
+function errorResponse_(error) {
+  var codes = ['UNAUTHORIZED', 'CONFLICT', 'INVALID_DATA', 'LIMIT', 'BUSY', 'CONFIG', 'INTERNAL', 'AUTH_FAILED', 'RATE_LIMITED', 'LOGIN_NOT_CONFIGURED', 'LOGIN_ALREADY_CONFIGURED', 'SESSION_EXPIRED', 'CURRENT_PASSWORD_INVALID', 'IMMUTABLE_HISTORY'];
+  var known = error && codes.indexOf(error.code) !== -1;
+  return json_({ ok: false, code: known ? error.code : 'INTERNAL', message: known ? error.message : 'Google Sheets operation failed. Check the deployment and try loading before saving again.' });
+}
 function fail_(code, message) { var error = new Error(message); error.code = code; throw error; }
 function object_(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }
 
@@ -285,6 +351,12 @@ function project_(ss, config, data, revision) {
     sections.DieuChinhLuong = data.payroll.adjustments;
     sections.KyLuong = data.payroll.periods;
     sections.CauHinhLuong = [data.payroll.settings];
+  }
+  if (data.commerce) {
+    sections.HoSoCongTy = [data.commerce.company];
+    sections.ChungTu = data.commerce.documents;
+    sections.SoDuThuDauKy = data.commerce.openingPaid;
+    sections.DanhMucGioiThieu = data.commerce.products;
   }
   // Also clear obsolete payroll projections when loading an old non-payroll backup.
   ['NhanVien', 'ChamCong', 'PhuCap', 'DieuChinhLuong', 'KyLuong', 'CauHinhLuong'].forEach(function (name) { if (!sections[name]) sections[name] = []; });
