@@ -123,8 +123,16 @@ var QLCTValidation = (() => {
   function validImage(value) {
     return obj(value) && onlyKeys(value, ["src", "alt"]) && safePublicUrl(value.src, true) && text(value.alt, 300);
   }
+  function validTrust(value) {
+    const list = (items, max, length) => Array.isArray(items) && items.length <= max && items.every((item) => required2(item, length));
+    if (!obj(value) || !onlyKeys(value, ["certifications", "clients", "stats", "equipment", "caseStudies"])) return false;
+    if (!list(value.certifications, 8, 120) || !list(value.clients, 16, 120) || !list(value.equipment, 16, 200)) return false;
+    if (!Array.isArray(value.stats) || value.stats.length > 4 || !value.stats.every((item) => obj(item) && onlyKeys(item, ["id", "value", "label", "note"]) && required2(item.id) && required2(item.value, 30) && required2(item.label, 120) && text(item.note, 300)) || new Set(value.stats.map((item) => item.id)).size !== value.stats.length) return false;
+    return Array.isArray(value.caseStudies) && value.caseStudies.length <= 6 && value.caseStudies.every((item) => obj(item) && onlyKeys(item, ["id", "title", "challenge", "solution", "result", "image"]) && required2(item.id) && required2(item.title, 200) && text(item.challenge, 800) && text(item.solution, 800) && text(item.result, 800) && validImage(item.image)) && new Set(value.caseStudies.map((item) => item.id)).size === value.caseStudies.length;
+  }
   function validWebsite(value) {
-    if (!obj(value) || !onlyKeys(value, ["logo", "brandColor", "heroEyebrow", "heroImageAlt", "aboutTitle", "aboutText", "aboutImage", "galleryTitle", "gallery", "businessHours", "zaloUrl", "mapUrl", "sections"])) return false;
+    if (!obj(value) || !onlyKeys(value, ["logo", "brandColor", "heroEyebrow", "heroImageAlt", "aboutTitle", "aboutText", "aboutImage", "galleryTitle", "gallery", "businessHours", "zaloUrl", "mapUrl", "trust", "sections"])) return false;
+    if (value.trust !== void 0 && !validTrust(value.trust)) return false;
     if (!validImage(value.logo) || !validImage(value.aboutImage) || typeof value.brandColor !== "string" || !/^#[a-fA-F0-9]{6}$/.test(value.brandColor)) return false;
     if (!["heroEyebrow", "heroImageAlt", "aboutTitle", "galleryTitle", "businessHours"].every((key) => text(value[key], 300)) || !text(value.aboutText, 6e3) || !safePublicUrl(value.zaloUrl) || !safePublicUrl(value.mapUrl)) return false;
     if (!Array.isArray(value.gallery) || value.gallery.length > 12 || !value.gallery.every((item) => obj(item) && onlyKeys(item, ["id", "title", "description", "image"]) && required2(item.id) && text(item.title, 200) && text(item.description, 1e3) && validImage(item.image)) || new Set(value.gallery.map((item) => item.id)).size !== value.gallery.length) return false;
@@ -193,7 +201,7 @@ var QLCTValidation = (() => {
     const image = (item) => ({ src: item.src, alt: item.alt });
     if (source.site) {
       const site = source.site;
-      profile.site = { logo: image(site.logo), brandColor: site.brandColor, heroEyebrow: site.heroEyebrow, heroImageAlt: site.heroImageAlt, aboutTitle: site.aboutTitle, aboutText: site.aboutText, aboutImage: image(site.aboutImage), galleryTitle: site.galleryTitle, gallery: site.gallery.map((item) => ({ id: item.id, title: item.title, description: item.description, image: image(item.image) })), businessHours: site.businessHours, zaloUrl: site.zaloUrl, mapUrl: site.mapUrl, sections: { about: site.sections.about, capabilities: site.sections.capabilities, products: site.sections.products, gallery: site.sections.gallery, process: site.sections.process, contact: site.sections.contact } };
+      profile.site = { logo: image(site.logo), brandColor: site.brandColor, heroEyebrow: site.heroEyebrow, heroImageAlt: site.heroImageAlt, aboutTitle: site.aboutTitle, aboutText: site.aboutText, aboutImage: image(site.aboutImage), galleryTitle: site.galleryTitle, gallery: site.gallery.map((item) => ({ id: item.id, title: item.title, description: item.description, image: image(item.image) })), businessHours: site.businessHours, zaloUrl: site.zaloUrl, mapUrl: site.mapUrl, ...site.trust ? { trust: { certifications: [...site.trust.certifications], clients: [...site.trust.clients], stats: site.trust.stats.map((item) => ({ id: item.id, value: item.value, label: item.label, note: item.note })), equipment: [...site.trust.equipment], caseStudies: site.trust.caseStudies.map((item) => ({ id: item.id, title: item.title, challenge: item.challenge, solution: item.solution, result: item.result, image: image(item.image) })) } } : {}, sections: { about: site.sections.about, capabilities: site.sections.capabilities, products: site.sections.products, gallery: site.sections.gallery, process: site.sections.process, contact: site.sections.contact } };
     }
     const products = draft.products.filter((item) => item.published).map((item) => ({ id: item.id, name: item.name, category: item.category, summary: item.summary, specification: item.specification, material: item.material, unit: item.unit, imageUrl: item.imageUrl, priceLabel: item.priceLabel, featured: item.featured, ...item.images ? { images: item.images.map(image) } : {} }));
     if (profile.site) {

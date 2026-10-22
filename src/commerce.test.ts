@@ -154,6 +154,27 @@ describe('published catalog allowlist', () => {
     Object.assign(published.profile.site!.logo, { secret: true })
     expect(validatePublicCatalog(published)).toBe(false)
   })
+  it('validates optional trust content, bounds it, and projects only allowlisted fields', () => {
+    const data = ready(), settings = getWebsiteSettings(data.commerce!.publicProfile)
+    data.commerce!.products = data.commerce!.products.map(item => ({ ...item, images: undefined }))
+    data.commerce!.publicProfile.site = settings
+    settings.trust = { certifications: ['ISO 9001:2015'], clients: ['Khách A'], equipment: ['Phay CNC 3 trục'], stats: [{ id: 's1', value: '±0.005mm', label: 'Dung sai', note: 'Đo bằng CMM' }], caseStudies: [{ id: 'c1', title: 'Đồ gá', challenge: 'a', solution: 'b', result: 'c', image: { src: '', alt: '' } }] }
+    expect(validateData(data)).toBe(true)
+    Object.assign(settings.trust.stats[0], { secret: 'PRIVATE-SECRET' })
+    const published = buildPublicCatalog(data)
+    delete (settings.trust.stats[0] as unknown as Record<string, unknown>).secret
+    expect(JSON.stringify(published)).not.toContain('PRIVATE-SECRET')
+    expect(published.profile.site!.trust!.stats[0]).toEqual({ id: 's1', value: '±0.005mm', label: 'Dung sai', note: 'Đo bằng CMM' })
+    const tooMany = structuredClone(data)
+    tooMany.commerce!.publicProfile.site!.trust!.stats = Array.from({ length: 5 }, (_, index) => ({ id: 's' + index, value: '1', label: 'x', note: '' }))
+    expect(validateData(tooMany)).toBe(false)
+    const blank = structuredClone(data)
+    blank.commerce!.publicProfile.site!.trust!.certifications = ['  ']
+    expect(validateData(blank)).toBe(false)
+    const unsafe = structuredClone(data)
+    unsafe.commerce!.publicProfile.site!.trust!.caseStudies[0].image.src = 'javascript:alert(1)'
+    expect(validateData(unsafe)).toBe(false)
+  })
   it('removes disabled section contents from public responses while preserving the editable draft', () => {
     const data = ready(), profile = data.commerce!.publicProfile
     const settings = getWebsiteSettings(profile)

@@ -1,7 +1,7 @@
 import { getWebsiteSettings, type PublicCatalog, type PublicProfile } from './commerce'
 
 const demoProfile: PublicProfile = {
-  name: 'Cơ khí An Phát', tagline: 'Gia công theo bản vẽ. Đồng hành cùng sản xuất.',
+  name: 'Cơ khí An Phát', tagline: 'Gửi bản vẽ hôm nay. Nhận phương án báo giá trong 24 giờ.',
   description: 'Không gian giới thiệu mẫu dành cho doanh nghiệp cơ khí: trình bày năng lực gia công, danh mục chi tiết và cách khách hàng liên hệ báo giá. Nội dung này là minh họa để trải nghiệm phần mềm.',
   address: '', phone: '', email: '', website: '', heroImage: '',
   capabilities: ['Tiện & phay CNC', 'Gia công theo bản vẽ', 'Kết cấu & đồ gá', 'Sản xuất theo đơn'],
@@ -17,6 +17,19 @@ export const publicDemo: PublicCatalog = {
       brandColor: '#146d5b', heroEyebrow: 'GIA CÔNG CƠ KHÍ THEO YÊU CẦU',
       aboutTitle: 'Chính xác từng micromet – Năng lực thực tế theo bản vẽ.',
       aboutText: 'Cơ khí An Phát chuyên gia công cơ khí chính xác, tiện & phay CNC, chế tạo đồ gá và chi tiết máy theo bản vẽ kỹ thuật.\n\nVới đội ngũ thợ lành nghề và hệ thống đo kiểm kỹ lưỡng, chúng tôi cam kết dung sai đạt chuẩn đến ±0.005mm, kiểm soát chất lượng từ phôi đầu vào đến khi nghiệm thu và bảo mật 100% bản vẽ của đối tác trước khi sản xuất.',
+      trust: {
+        certifications: [],
+        clients: [],
+        stats: [
+          { id: 'demo-tolerance', value: '±0.005mm', label: 'Dung sai kiểm soát', note: 'Cho chi tiết máy và đồ gá định vị (số liệu minh họa).' },
+          { id: 'demo-quote', value: '24 giờ', label: 'Phản hồi báo giá', note: 'Tiếp nhận bản vẽ 2D/3D và đề xuất phương án gia công.' },
+          { id: 'demo-qc', value: 'IQC · PQC · OQC', label: 'Đo kiểm 3 cấp', note: 'Kiểm tra từ phôi đầu vào đến khi bàn giao.' },
+        ],
+        equipment: ['Máy phay CNC 3 trục', 'Máy tiện CNC', 'Thiết bị đo kiểm kích thước'],
+        caseStudies: [
+          { id: 'demo-case', title: 'Đồ gá định vị cho dây chuyền lắp ráp (dự án mẫu)', challenge: 'Cần đồ gá lặp lại vị trí chính xác, giao nhanh để kịp lịch lắp ráp.', solution: 'Trao đổi bản vẽ, chọn vật liệu nhôm và gia công phay CNC, đo kiểm từng bộ trước khi giao.', result: 'Ví dụ minh họa: thay bằng kết quả thật của doanh nghiệp.', image: { src: '', alt: '' } },
+        ],
+      },
       galleryTitle: 'Không gian xưởng & công việc',
       gallery: [
         { id: 'demo-workshop', title: 'Không gian gia công', description: 'Vị trí minh họa để chủ xưởng đăng ảnh máy móc và khu vực sản xuất thực tế.', image: { src: '', alt: '' } },

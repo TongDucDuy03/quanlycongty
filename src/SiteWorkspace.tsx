@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, Copy, Eye, Globe, Image, Plus, Save, Trash2, X } from 'lucide-react'
 import type { Data } from './domain'
 import { newId } from './domain'
-import { buildPublicCatalog, getCommerce, getWebsiteSettings, type CatalogProduct, type PublicProfile, type WebsiteSettings, type WebsiteImage, type ShowcaseItem } from './commerce'
+import { buildPublicCatalog, getCommerce, getTrust, getWebsiteSettings, type CatalogProduct, type CaseStudy, type PublicProfile, type TrustSettings, type WebsiteSettings, type WebsiteImage, type ShowcaseItem, type WebsiteStat } from './commerce'
 import { companyManaged, getCompanyToken } from './company-config'
 import { readSheetsCheckpoint, snapshotDigest } from './sheets-sync'
 import { publishPublicCatalog } from './public-catalog'
@@ -12,8 +12,10 @@ import SiteImage from './SiteImage'
 import './site-workspace.css'
 const PublicSite = lazy(() => import('./PublicSite'))
 const blankProduct = (): CatalogProduct => ({ id: newId(), name: '', category: '', summary: '', specification: '', material: '', unit: '', imageUrl: '', priceLabel: 'Liên hệ báo giá', published: false, featured: false })
-const navigation = [['identity', 'Nhận diện'], ['hero', 'Trang đầu'], ['about', 'Giới thiệu'], ['products', 'Sản phẩm'], ['gallery', 'Hình ảnh công việc'], ['contact', 'Liên hệ']] as const
+const navigation = [['identity', 'Nhận diện'], ['hero', 'Trang đầu'], ['about', 'Giới thiệu'], ['trust', 'Uy tín & dự án'], ['products', 'Sản phẩm'], ['gallery', 'Hình ảnh công việc'], ['contact', 'Liên hệ']] as const
 const sectionNames: Record<keyof WebsiteSettings['sections'], string> = { about: 'Giới thiệu doanh nghiệp', capabilities: 'Năng lực gia công', products: 'Sản phẩm & dịch vụ', gallery: 'Hình ảnh công việc', process: 'Quy trình làm việc', contact: 'Liên hệ báo giá' }
+const toLines = (value: string) => value.split('\n').map(line => line.trim()).filter(Boolean)
+const trustLinesOf = (site: WebsiteSettings) => { const trust = getTrust(site); return { certifications: trust.certifications.join('\n'), clients: trust.clients.join('\n'), equipment: trust.equipment.join('\n') } }
 const shift = <T,>(items: T[], index: number, by: number) => { const next = [...items]; const target = index + by; if (target >= 0 && target < items.length) [next[index], next[target]] = [next[target], next[index]]; return next }
 function Section({ id, title, help, children }: { id: string; title: string; help: string; children: React.ReactNode }) { return <section id={`cms-${id}`} className="card site-section"><div className="card-header"><div><h2>{title}</h2><p>{help}</p></div></div>{children}</section> }
 function TextField({ label, value, onChange, required, multiline, max = 1000, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; multiline?: boolean; max?: number; type?: string }) { return <label className={multiline ? 'wide' : ''}><span>{label}{required ? ' *' : ''}</span>{multiline ? <textarea rows={4} value={value} onChange={event => onChange(event.target.value)} maxLength={max} /> : <input type={type} value={value} onChange={event => onChange(event.target.value)} required={required} maxLength={max} />}</label> }
@@ -23,6 +25,7 @@ export default function SiteWorkspace({ data, onCommit, onDirtyChange }: { data:
   const [settings, setSettings] = useState(() => structuredClone(getWebsiteSettings(getCommerce(data).publicProfile)))
   const [products, setProducts] = useState<CatalogProduct[]>(() => structuredClone(getCommerce(data).products))
   const [capabilities, setCapabilities] = useState(() => getCommerce(data).publicProfile.capabilities.join('\n'))
+  const [trustLines, setTrustLines] = useState(() => trustLinesOf(getWebsiteSettings(getCommerce(data).publicProfile)))
   const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState(''), [preview, setPreview] = useState(false)
   const [editing, setEditing] = useState<CatalogProduct | null>(null), [showLibrary, setShowLibrary] = useState(false)
   const [uploads, setUploads] = useState<Record<string, boolean>>({})
@@ -33,12 +36,17 @@ export default function SiteWorkspace({ data, onCommit, onDirtyChange }: { data:
   useEffect(() => () => { dirtyCallback.current?.(false) }, [])
   const currentData = useRef(data); currentData.current = data
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
-  useEffect(() => { if (!dirty && !editing && !uploading) { const c = getCommerce(data); setProfile(structuredClone(c.publicProfile)); setSettings(structuredClone(getWebsiteSettings(c.publicProfile))); setProducts(structuredClone(c.products)); setCapabilities(c.publicProfile.capabilities.join('\n')) } }, [data, dirty, editing, uploading])
+  useEffect(() => { if (!dirty && !editing && !uploading) { const c = getCommerce(data); setProfile(structuredClone(c.publicProfile)); setSettings(structuredClone(getWebsiteSettings(c.publicProfile))); setProducts(structuredClone(c.products)); setCapabilities(c.publicProfile.capabilities.join('\n')); setTrustLines(trustLinesOf(getWebsiteSettings(c.publicProfile))) } }, [data, dirty, editing, uploading])
   const changed = () => { setDirty(true); setMessage('') }
   const changeProfile = <K extends keyof PublicProfile>(key: K, value: PublicProfile[K]) => { setProfile(previous => ({ ...previous, [key]: value })); changed() }
   const changeSetting = <K extends keyof WebsiteSettings>(key: K, value: WebsiteSettings[K]) => { setSettings(previous => ({ ...previous, [key]: value })); changed() }
   const imageBusy = (key: string, value: boolean) => setUploads(previous => previous[key] === value ? previous : { ...previous, [key]: value })
-  const draft = (): Data => ({ ...data, commerce: { ...getCommerce(data), publicProfile: { ...profile, site: settings, capabilities: capabilities.split('\n').map(s => s.trim()).filter(Boolean) }, products } })
+  const currentTrust = (): TrustSettings => ({ ...getTrust(settings), certifications: toLines(trustLines.certifications), clients: toLines(trustLines.clients), equipment: toLines(trustLines.equipment) })
+  const draftSite = (): WebsiteSettings => {
+    const { trust: _omit, ...rest } = settings, trust = currentTrust()
+    return Object.values(trust).some(list => list.length) ? { ...rest, trust } : rest
+  }
+  const draft = (): Data => ({ ...data, commerce: { ...getCommerce(data), publicProfile: { ...profile, site: draftSite(), capabilities: capabilities.split('\n').map(s => s.trim()).filter(Boolean) }, products } })
   function save(event: React.FormEvent) {
     event.preventDefault(); setError(''); setMessage('')
     if (uploading) { setError('Chờ ảnh tải xong trước khi lưu bản nháp.'); return }
@@ -62,6 +70,10 @@ export default function SiteWorkspace({ data, onCommit, onDirtyChange }: { data:
     finally { if (mounted.current) setBusy(false) }
   }
   function updateProduct(product: CatalogProduct) { setProducts(items => items.some(item => item.id === product.id) ? items.map(item => item.id === product.id ? product : item) : [...items, product]); changed(); setEditing(null); setError('') }
+  const setTrust = (patch: Partial<TrustSettings>) => changeSetting('trust', { ...getTrust(settings), ...patch })
+  const changeLines = (key: keyof typeof trustLines, value: string) => { setTrustLines(previous => ({ ...previous, [key]: value })); changed() }
+  const updateStat = (id: string, patch: Partial<WebsiteStat>) => setTrust({ stats: getTrust(settings).stats.map(item => item.id === id ? { ...item, ...patch } : item) })
+  const updateCase = (id: string, patch: Partial<CaseStudy>) => setTrust({ caseStudies: getTrust(settings).caseStudies.map(item => item.id === id ? { ...item, ...patch } : item) })
   function updateGallery(id: string, patch: Partial<ShowcaseItem>) { changeSetting('gallery', settings.gallery.map(item => item.id === id ? { ...item, ...patch } : item)) }
   let previewCatalog
   try { if (preview) previewCatalog = buildPublicCatalog(draft()) } catch { /* Missing draft details shown below. */ }
@@ -91,6 +103,20 @@ export default function SiteWorkspace({ data, onCommit, onDirtyChange }: { data:
         <TextField label="Chú thích ảnh giới thiệu" value={settings.aboutImage.alt} onChange={alt => changeSetting('aboutImage', { ...settings.aboutImage, alt })} max={300} />
         <TextField label="Năng lực gia công (mỗi dòng một mục)" multiline max={6000} value={capabilities} onChange={value => { setCapabilities(value); changed() }} />
       </div></Section>
+      <Section id="trust" title="Uy tín, số liệu & dự án" help="Chỉ nhập thông tin có thật và chứng minh được: chứng nhận đang có hiệu lực, khách hàng đồng ý công khai, số liệu lấy từ thực tế. Phần nào để trống sẽ tự ẩn khỏi website."><div className="site-fields">
+        <TextField label="Chứng nhận & tiêu chuẩn (mỗi dòng một mục, tối đa 8)" multiline max={1000} value={trustLines.certifications} onChange={value => changeLines('certifications', value)} />
+        <TextField label="Khách hàng / đối tác đồng ý công khai (mỗi dòng một tên, tối đa 16)" multiline max={2000} value={trustLines.clients} onChange={value => changeLines('clients', value)} />
+        <TextField label="Máy móc & thiết bị (mỗi dòng một mục, tối đa 16)" multiline max={3000} value={trustLines.equipment} onChange={value => changeLines('equipment', value)} />
+      </div>
+      <h3 className="site-subhead">Số liệu nổi bật (tối đa 4)</h3><div className="site-gallery-editor">{getTrust(settings).stats.map((item, index) => <article key={item.id}>
+        <div className="site-gallery-editor-head"><strong>Số liệu {index + 1}</strong><div><button type="button" className="icon-button" aria-label={`Xóa số liệu ${index + 1}`} onClick={() => setTrust({ stats: getTrust(settings).stats.filter(row => row.id !== item.id) })}><Trash2 size={16} /></button></div></div>
+        <TextField label={`Giá trị ${index + 1} (ví dụ ±0.005mm, 24 giờ)`} required max={30} value={item.value} onChange={value => updateStat(item.id, { value })} /><TextField label={`Nhãn ${index + 1}`} required max={120} value={item.label} onChange={label => updateStat(item.id, { label })} /><TextField label={`Ghi chú ${index + 1} (cách đo, phạm vi áp dụng)`} multiline max={300} value={item.note} onChange={note => updateStat(item.id, { note })} />
+      </article>)}</div><div className="site-section-tools"><button type="button" className="button secondary" disabled={getTrust(settings).stats.length >= 4} onClick={() => setTrust({ stats: [...getTrust(settings).stats, { id: newId(), value: '', label: '', note: '' }] })}><Plus size={16} />Thêm số liệu</button><small>Không đưa số liệu chưa kiểm chứng được.</small></div>
+      <h3 className="site-subhead">Dự án tiêu biểu (tối đa 6)</h3><div className="site-gallery-editor">{getTrust(settings).caseStudies.map((item, index) => <article key={item.id}>
+        <div className="site-gallery-editor-head"><strong>Dự án {index + 1}</strong><div><button type="button" className="icon-button" aria-label={`Đưa dự án ${index + 1} lên`} disabled={!index} onClick={() => setTrust({ caseStudies: shift(getTrust(settings).caseStudies, index, -1) })}><ArrowUp size={16} /></button><button type="button" className="icon-button" aria-label={`Đưa dự án ${index + 1} xuống`} disabled={index === getTrust(settings).caseStudies.length - 1} onClick={() => setTrust({ caseStudies: shift(getTrust(settings).caseStudies, index, 1) })}><ArrowDown size={16} /></button><button type="button" className="icon-button" aria-label={`Xóa dự án ${index + 1}`} onClick={() => { if (window.confirm('Bỏ dự án này khỏi bản nháp?')) setTrust({ caseStudies: getTrust(settings).caseStudies.filter(row => row.id !== item.id) }) }}><Trash2 size={16} /></button></div></div>
+        <ImagePicker label={`Ảnh dự án ${index + 1}`} value={item.image.src} onChange={src => updateCase(item.id, { image: { ...item.image, src } })} onBusyChange={value => imageBusy(item.id, value)} />
+        <TextField label={`Tên dự án ${index + 1}`} required max={200} value={item.title} onChange={title => updateCase(item.id, { title })} /><TextField label={`Bài toán ${index + 1}`} multiline max={800} value={item.challenge} onChange={challenge => updateCase(item.id, { challenge })} /><TextField label={`Giải pháp ${index + 1}`} multiline max={800} value={item.solution} onChange={solution => updateCase(item.id, { solution })} /><TextField label={`Kết quả ${index + 1}`} multiline max={800} value={item.result} onChange={result => updateCase(item.id, { result })} />
+      </article>)}</div><div className="site-section-tools"><button type="button" className="button secondary" disabled={getTrust(settings).caseStudies.length >= 6} onClick={() => setTrust({ caseStudies: [...getTrust(settings).caseStudies, { id: newId(), title: '', challenge: '', solution: '', result: '', image: { src: '', alt: '' } }] })}><Plus size={16} />Thêm dự án</button><small>Chỉ đăng dự án được phép công khai, không dùng bản vẽ mật.</small></div></Section>
       <Section id="products" title={`Sản phẩm & dịch vụ (${products.length})`} help="Sắp xếp, thay ảnh và cập nhật sản phẩm theo hoạt động của xưởng. Thứ tự bên dưới là thứ tự trên website.">
         <div className="site-section-tools"><button type="button" className="button secondary" disabled={products.length >= 100} onClick={() => setEditing(blankProduct())}><Plus size={16} />Thêm sản phẩm</button><small>Tối đa 100 sản phẩm · 6 ảnh/sản phẩm</small></div>
         <div className="site-product-list">{products.map((product, index) => <article key={product.id}>
