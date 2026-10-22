@@ -2735,3 +2735,60 @@ th {
   padding: 32px;
   color: var(--muted);
 }
+
+/* A compact, readable directory without changing the other workspaces. */
+.main-shell[data-page="customers"] .topbar {
+  height: 60px;
+  padding-inline: 28px;
+}
+.main-shell[data-page="customers"] .breadcrumb { font-size: 13px; }
+.main-shell[data-page="customers"] .local-indicator { font-size: 12px; }
+.main-shell[data-page="customers"] > main { padding: 20px 28px 0; }
+.main-shell[data-page="customers"] .page-heading { margin-bottom: 16px; }
+.main-shell[data-page="customers"] .eyebrow { font-size: 10px; margin-bottom: 4px; }
+.main-shell[data-page="customers"] h1 { font-size: 30px; }
+.main-shell[data-page="customers"] .page-heading p { font-size: 14px; margin-top: 4px; }
+.main-shell[data-page="customers"] .heading-actions { padding-top: 0; }
+.main-shell[data-page="customers"] .heading-actions .button { font-size: 14px; min-height: 42px; }
+.main-shell[data-page="customers"] .customer-toolbar { margin-bottom: 12px; gap: 12px; font-size: 14px; }
+.main-shell[data-page="customers"] .customer-toolbar .search-box { width: 320px; height: 42px; }
+.main-shell[data-page="customers"] .customer-toolbar input { font-size: 14px; }
+.main-shell[data-page="customers"] .customer-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+.main-shell[data-page="customers"] .customer-card {
+  min-width: 0;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+}
+.main-shell[data-page="customers"] .customer-card-top { gap: 12px; margin-bottom: 0; align-items: flex-start; }
+.main-shell[data-page="customers"] .customer-avatar { flex-shrink: 0; font-size: 16px; }
+.customer-identity { flex: 1; min-width: 0; }
+.main-shell[data-page="customers"] .customer-identity h2 { font-size: 18px; line-height: 1.4; overflow-wrap: anywhere; }
+.customer-identity p { font-size: 14px; line-height: 1.5; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
+.main-shell[data-page="customers"] .customer-card .subtle-pill { font-size: 12px; white-space: nowrap; padding: 4px 7px; }
+.main-shell[data-page="customers"] .customer-card dl { margin: 16px 0; font-size: 14px; gap: 8px; }
+.main-shell[data-page="customers"] .customer-card dl > div { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 10px; line-height: 1.5; }
+.main-shell[data-page="customers"] .customer-card dd { text-align: left; line-height: 1.5; }
+.main-shell[data-page="customers"] .customer-balance { margin-top: auto; padding: 12px 0 6px; font-size: 14px; flex-wrap: wrap; }
+.main-shell[data-page="customers"] .customer-balance strong { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.main-shell[data-page="customers"] .customer-card .text-button { align-self: flex-start; min-height: 40px; font-size: 14px; }
+@media (max-width: 1200px) {
+  .main-shell[data-page="customers"] .customer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 960px) {
+  .main-shell[data-page="customers"] .customer-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .main-shell[data-page="customers"] .topbar { padding-inline: 16px; }
+  .main-shell[data-page="customers"] > main { padding: 16px 16px 0; }
+  .main-shell[data-page="customers"] .local-indicator { font-size: 11px; }
+  .main-shell[data-page="customers"] .customer-toolbar { gap: 8px; }
+  .main-shell[data-page="customers"] .customer-toolbar .search-box { width: 100%; }
+  .main-shell[data-page="customers"] .customer-toolbar input { font-size: 16px; }
+  .main-shell[data-page="customers"] .customer-card { padding: 16px; }
+  .main-shell[data-page="customers"] .customer-card .text-button { min-height: 44px; }
+}

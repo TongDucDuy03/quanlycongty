@@ -671,7 +671,7 @@ export default function App() {
           </div>
         </div>
       </aside>
-      <div className="main-shell">
+      <div className="main-shell" data-page={page}>
         <header className="topbar">
           <div className="breadcrumb">
             <button
@@ -1361,12 +1361,14 @@ export default function App() {
                               .map((w) => w[0])
                               .join("")}
                           </span>
+                          <div className="customer-identity">
+                            <h2>{c.name}</h2>
+                            <p>{c.contact}</p>
+                          </div>
                           <span className="subtle-pill">
                             {orders.length} đơn hàng
                           </span>
                         </div>
-                        <h2>{c.name}</h2>
-                        <p>{c.contact}</p>
                         <dl>
                           <div>
                             <dt>Điện thoại</dt>
