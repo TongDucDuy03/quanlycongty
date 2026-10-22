@@ -11,6 +11,8 @@ Ngày: 22/10/2026. Thư mục dự án: `D:\quản lý công ty`. Ban đầu th�
 - Review đã sửa: giới hạn mô tả ảnh công việc khớp validator; mã hóa base64 dùng Byte[] có dấu của Apps Script; link xem trước giữ người dùng trong editor; phần bị tắt không còn nội dung/ảnh trong bản công khai. Ảnh riêng theo phiên không dùng chung cache với ảnh công khai; callback cũ không gán ảnh sau hủy/thay/đổi phiên.
 - Ảnh lưu riêng khỏi snapshot nghiệp vụ; bản sao JSON chỉ chứa tham chiếu. Thư viện demo cục bộ IndexedDB có kiểm tra quota phía client; bản công ty dùng kiểm tra dưới khóa backend. Chưa phải kho ảnh/CDN cho website có lượng truy cập lớn.
 - Apps Script thật đã cập nhật lên **phiên bản 5** lúc 15:16, giữ nguyên endpoint và OAuth scope. Kiểm tra thật: catalog hoạt động; mã ảnh không xuất bản trả `NOT_FOUND`; danh sách thư viện không có phiên trả `UNAUTHORIZED`. Không đổi quyền Sheet hoặc khởi tạo lại dữ liệu.
+- Commit `ecf5320` được [workflow 39747054836](https://github.com/TongDucDuy03/quanlycongty/actions/runs/39747054836) triển khai thành công; bundle Pages khớp bản kiểm thử. QA kiểm tra trực tiếp desktop/mobile: GET catalog thật thành công, không POST nội bộ, không lỗi CORS/JavaScript/tràn ngang; chi tiết sản phẩm, sáng/tối và cổng đăng nhập hoạt động.
+- Phiên Chrome hiện có tải CMS mới và vẫn đồng bộ **v3**. Đã tải ảnh thử `cms-upload-demo.png` qua giao diện lên backend thật và xem trước thành công. Ảnh thử nằm riêng trong thư viện, chưa xuất bản; không lưu hồ sơ thử hoặc tạo giao dịch nghiệp vụ. Nội dung website công khai vẫn là bản mẫu có nhãn cho đến khi quản lý nhập và xuất bản thông tin thật.
 
 ## Bán hàng, chứng từ và website công khai — 22/10/2026
 
