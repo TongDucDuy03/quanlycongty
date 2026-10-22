@@ -119,11 +119,15 @@ var QLCTValidation = (() => {
   return __toCommonJS(sheets_validation_entry_exports);
 })();
 
+var QLCTCrypto=(()=>{var C=Object.defineProperty;var N=Object.getOwnPropertyDescriptor;var J=Object.getOwnPropertyNames;var X=Object.prototype.hasOwnProperty;var v=(e,t)=>{for(var s in t)C(e,s,{get:t[s],enumerable:!0})},q=(e,t,s,n)=>{if(t&&typeof t=="object"||typeof t=="function")for(let r of J(t))!X.call(e,r)&&r!==s&&C(e,r,{get:()=>t[r],enumerable:!(n=N(t,r))||n.enumerable});return e};var z=e=>q(C({},"__esModule",{value:!0}),e);var et={};v(et,{hmac:()=>U,pbkdf2:()=>R,sha256:()=>P});function Q(e){return e instanceof Uint8Array||ArrayBuffer.isView(e)&&e.constructor.name==="Uint8Array"}function A(e){if(!Number.isSafeInteger(e)||e<0)throw new Error("positive integer expected, got "+e)}function w(e,...t){if(!Q(e))throw new Error("Uint8Array expected");if(t.length>0&&!t.includes(e.length))throw new Error("Uint8Array expected of length "+t+", got length="+e.length)}function S(e){if(typeof e!="function"||typeof e.create!="function")throw new Error("Hash should be wrapped by utils.createHasher");A(e.outputLen),A(e.blockLen)}function L(e,t=!0){if(e.destroyed)throw new Error("Hash instance has been destroyed");if(t&&e.finished)throw new Error("Hash#digest() has already been called")}function T(e,t){w(e);let s=t.outputLen;if(e.length<s)throw new Error("digestInto() expects output buffer of length at least "+s)}function l(...e){for(let t=0;t<e.length;t++)e[t].fill(0)}function B(e){return new DataView(e.buffer,e.byteOffset,e.byteLength)}function u(e,t){return e<<32-t|e>>>t}function V(e){if(typeof e!="string")throw new Error("string expected");return new Uint8Array(new TextEncoder().encode(e))}function I(e){return typeof e=="string"&&(e=V(e)),w(e),e}function D(e){return typeof e=="string"&&(e=V(e)),w(e),e}function O(e,t){if(t!==void 0&&{}.toString.call(t)!=="[object Object]")throw new Error("options should be object or undefined");return Object.assign(e,t)}var m=class{};function W(e){let t=n=>e().update(I(n)).digest(),s=e();return t.outputLen=s.outputLen,t.blockLen=s.blockLen,t.create=()=>e(),t}var _=class extends m{constructor(t,s){super(),this.finished=!1,this.destroyed=!1,S(t);let n=I(s);if(this.iHash=t.create(),typeof this.iHash.update!="function")throw new Error("Expected instance of class which extends utils.Hash");this.blockLen=this.iHash.blockLen,this.outputLen=this.iHash.outputLen;let r=this.blockLen,i=new Uint8Array(r);i.set(n.length>r?t.create().update(n).digest():n);for(let o=0;o<i.length;o++)i[o]^=54;this.iHash.update(i),this.oHash=t.create();for(let o=0;o<i.length;o++)i[o]^=106;this.oHash.update(i),l(i)}update(t){return L(this),this.iHash.update(t),this}digestInto(t){L(this),w(t,this.outputLen),this.finished=!0,this.iHash.digestInto(t),this.oHash.update(t),this.oHash.digestInto(t),this.destroy()}digest(){let t=new Uint8Array(this.oHash.outputLen);return this.digestInto(t),t}_cloneInto(t){t||(t=Object.create(Object.getPrototypeOf(this),{}));let{oHash:s,iHash:n,finished:r,destroyed:i,blockLen:o,outputLen:c}=this;return t=t,t.finished=r,t.destroyed=i,t.blockLen=o,t.outputLen=c,t.oHash=s._cloneInto(t.oHash),t.iHash=n._cloneInto(t.iHash),t}clone(){return this._cloneInto()}destroy(){this.destroyed=!0,this.oHash.destroy(),this.iHash.destroy()}},U=(e,t,s)=>new _(e,t).update(s).digest();U.create=(e,t)=>new _(e,t);function Y(e,t,s,n){S(e);let r=O({dkLen:32,asyncTick:10},n),{c:i,dkLen:o,asyncTick:c}=r;if(A(i),A(o),A(c),i<1)throw new Error("iterations (c) should be >= 1");let a=D(t),f=D(s),d=new Uint8Array(o),h=U.create(e,a),x=h._cloneInto().update(f);return{c:i,dkLen:o,asyncTick:c,DK:d,PRF:h,PRFSalt:x}}function Z(e,t,s,n,r){return e.destroy(),t.destroy(),n&&n.destroy(),l(r),s}function R(e,t,s,n){let{c:r,dkLen:i,DK:o,PRF:c,PRFSalt:a}=Y(e,t,s,n),f,d=new Uint8Array(4),h=B(d),x=new Uint8Array(c.outputLen);for(let b=1,H=0;H<i;b++,H+=c.outputLen){let y=o.subarray(H,H+c.outputLen);h.setInt32(0,b,!1),(f=a._cloneInto(f)).update(d).digestInto(x),y.set(x.subarray(0,y.length));for(let G=1;G<r;G++){c._cloneInto(f).update(x).digestInto(x);for(let E=0;E<y.length;E++)y[E]^=x[E]}}return Z(c,a,o,f,x)}function $(e,t,s,n){if(typeof e.setBigUint64=="function")return e.setBigUint64(t,s,n);let r=BigInt(32),i=BigInt(4294967295),o=Number(s>>r&i),c=Number(s&i),a=n?4:0,f=n?0:4;e.setUint32(t+a,o,n),e.setUint32(t+f,c,n)}function j(e,t,s){return e&t^~e&s}function K(e,t,s){return e&t^e&s^t&s}var k=class extends m{constructor(t,s,n,r){super(),this.finished=!1,this.length=0,this.pos=0,this.destroyed=!1,this.blockLen=t,this.outputLen=s,this.padOffset=n,this.isLE=r,this.buffer=new Uint8Array(t),this.view=B(this.buffer)}update(t){L(this),t=I(t),w(t);let{view:s,buffer:n,blockLen:r}=this,i=t.length;for(let o=0;o<i;){let c=Math.min(r-this.pos,i-o);if(c===r){let a=B(t);for(;r<=i-o;o+=r)this.process(a,o);continue}n.set(t.subarray(o,o+c),this.pos),this.pos+=c,o+=c,this.pos===r&&(this.process(s,0),this.pos=0)}return this.length+=t.length,this.roundClean(),this}digestInto(t){L(this),T(t,this),this.finished=!0;let{buffer:s,view:n,blockLen:r,isLE:i}=this,{pos:o}=this;s[o++]=128,l(this.buffer.subarray(o)),this.padOffset>r-o&&(this.process(n,0),o=0);for(let h=o;h<r;h++)s[h]=0;$(n,r-8,BigInt(this.length*8),i),this.process(n,0);let c=B(t),a=this.outputLen;if(a%4)throw new Error("_sha2: outputLen should be aligned to 32bit");let f=a/4,d=this.get();if(f>d.length)throw new Error("_sha2: outputLen bigger than state");for(let h=0;h<f;h++)c.setUint32(4*h,d[h],i)}digest(){let{buffer:t,outputLen:s}=this;this.digestInto(t);let n=t.slice(0,s);return this.destroy(),n}_cloneInto(t){t||(t=new this.constructor),t.set(...this.get());let{blockLen:s,buffer:n,length:r,finished:i,destroyed:o,pos:c}=this;return t.destroyed=o,t.finished=i,t.length=r,t.pos=c,r%s&&t.buffer.set(n),t}clone(){return this._cloneInto()}},p=Uint32Array.from([1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225]);var tt=Uint32Array.from([1116352408,1899447441,3049323471,3921009573,961987163,1508970993,2453635748,2870763221,3624381080,310598401,607225278,1426881987,1925078388,2162078206,2614888103,3248222580,3835390401,4022224774,264347078,604807628,770255983,1249150122,1555081692,1996064986,2554220882,2821834349,2952996808,3210313671,3336571891,3584528711,113926993,338241895,666307205,773529912,1294757372,1396182291,1695183700,1986661051,2177026350,2456956037,2730485921,2820302411,3259730800,3345764771,3516065817,3600352804,4094571909,275423344,430227734,506948616,659060556,883997877,958139571,1322822218,1537002063,1747873779,1955562222,2024104815,2227730452,2361852424,2428436474,2756734187,3204031479,3329325298]),g=new Uint32Array(64),F=class extends k{constructor(t=32){super(64,t,8,!1),this.A=p[0]|0,this.B=p[1]|0,this.C=p[2]|0,this.D=p[3]|0,this.E=p[4]|0,this.F=p[5]|0,this.G=p[6]|0,this.H=p[7]|0}get(){let{A:t,B:s,C:n,D:r,E:i,F:o,G:c,H:a}=this;return[t,s,n,r,i,o,c,a]}set(t,s,n,r,i,o,c,a){this.A=t|0,this.B=s|0,this.C=n|0,this.D=r|0,this.E=i|0,this.F=o|0,this.G=c|0,this.H=a|0}process(t,s){for(let h=0;h<16;h++,s+=4)g[h]=t.getUint32(s,!1);for(let h=16;h<64;h++){let x=g[h-15],b=g[h-2],H=u(x,7)^u(x,18)^x>>>3,y=u(b,17)^u(b,19)^b>>>10;g[h]=y+g[h-7]+H+g[h-16]|0}let{A:n,B:r,C:i,D:o,E:c,F:a,G:f,H:d}=this;for(let h=0;h<64;h++){let x=u(c,6)^u(c,11)^u(c,25),b=d+x+j(c,a,f)+tt[h]+g[h]|0,y=(u(n,2)^u(n,13)^u(n,22))+K(n,r,i)|0;d=f,f=a,a=c,c=o+b|0,o=i,i=r,r=n,n=b+y|0}n=n+this.A|0,r=r+this.B|0,i=i+this.C|0,o=o+this.D|0,c=c+this.E|0,a=a+this.F|0,f=f+this.G|0,d=d+this.H|0,this.set(n,r,i,o,c,a,f,d)}roundClean(){l(g)}destroy(){this.set(0,0,0,0,0,0,0,0),l(this.buffer)}};var M=W(()=>new F);var P=M;return z(et);})();
+
 /**
  * Bound Google Sheets web app, execute as owner, access Anyone.
  * The spreadsheet stays private. Every data request requires the installation
- * bearer token; anyone holding it has FULL access, including payroll.
+ * bearer token or a signed manager session. Both grant full access to payroll.
  * POST text/plain JSON: {action:'load'|'save', token, expectedRevision?, data?}.
+ * login uses username/password. configureLogin creates the account ONCE using
+ * the installation token. exchange migrates an existing trusted browser.
  * Never put the token in a URL, source code, build environment or repository.
  * No GET data API / JSONP. Follow ContentService's redirect; do not use no-cors.
  * Manual snapshot sync, 2 MiB UTF-8 JSON maximum; no real-time merge or RBAC.
@@ -169,7 +173,15 @@ function doPost(e) {
     if (typeof raw !== 'string' || raw.length > QLCT.maxBytes + 10000) fail_('LIMIT', 'Request exceeds the pilot storage limit.');
     var request;
     try { request = JSON.parse(raw); } catch (_) { fail_('INVALID_DATA', 'Invalid JSON request.'); }
-    if (!object_(request) || !sameToken_(request.token, config.token)) fail_('UNAUTHORIZED', 'Invalid connection key.');
+    if (!object_(request)) fail_('INVALID_DATA', 'Invalid request.');
+    if (['login', 'configureLogin', 'exchange'].indexOf(request.action) !== -1) {
+      if (raw.length > 2000) fail_('LIMIT', 'Login request is too large.');
+      if (request.action !== 'login' && !sameToken_(request.token, config.token)) fail_('AUTH_FAILED', 'Invalid credentials.');
+      lock = LockService.getScriptLock();
+      if (!lock.tryLock(10000)) fail_('BUSY', 'Another operation is running. Try again shortly.');
+      return json_(accountRequest_(request, config));
+    }
+    authorize_(request.token, config);
     if (request.action !== 'load' && request.action !== 'save') fail_('INVALID_DATA', 'Unknown action.');
     var serialized;
     if (request.action === 'save') {
@@ -204,7 +216,7 @@ function doPost(e) {
     catch (_) { result.warning = 'Data saved. Some report tabs could not be refreshed; load from the app remains authoritative.'; }
     return json_(result);
   } catch (error) {
-    var codes = ['UNAUTHORIZED', 'CONFLICT', 'INVALID_DATA', 'LIMIT', 'BUSY', 'CONFIG', 'INTERNAL'];
+    var codes = ['UNAUTHORIZED', 'CONFLICT', 'INVALID_DATA', 'LIMIT', 'BUSY', 'CONFIG', 'INTERNAL', 'AUTH_FAILED', 'RATE_LIMITED', 'LOGIN_NOT_CONFIGURED', 'LOGIN_ALREADY_CONFIGURED', 'SESSION_EXPIRED'];
     var known = error && codes.indexOf(error.code) !== -1;
     return json_({ ok: false, code: known ? error.code : 'INTERNAL', message: known ? error.message : 'Google Sheets operation failed. Check the deployment and try loading before saving again.' });
   } finally { if (lock && lock.hasLock()) lock.releaseLock(); }
@@ -259,6 +271,76 @@ function sameToken_(input, expected) {
   var difference = 0;
   for (var i = 0; i < expected.length; i++) difference |= input.charCodeAt(i) ^ expected.charCodeAt(i);
   return difference === 0;
+}
+
+// All password KDF inputs are byte arrays. Apps Script V8 has no TextEncoder;
+// Utilities performs UTF-8 conversion; noble supplies the cryptographic functions.
+function authBytes_(value) { return new Uint8Array(Utilities.newBlob(value).getBytes().map(function (byte) { return byte & 255; })); }
+function authHex_(bytes) { return Array.from(bytes).map(function (byte) { return ('0' + byte.toString(16)).slice(-2); }).join(''); }
+function passwordHash_(password, salt) {
+  return authHex_(QLCTCrypto.pbkdf2(QLCTCrypto.sha256, authBytes_(password), authBytes_(salt), { c: 600000, dkLen: 32 }));
+}
+function account_() {
+  var raw = PropertiesService.getScriptProperties().getProperty('QLCT_LOGIN');
+  if (!raw) return null;
+  var account;
+  try { account = JSON.parse(raw); } catch (_) { fail_('CONFIG', 'Login configuration is invalid.'); }
+  if (!object_(account) || !/^[a-z0-9][a-z0-9._-]{2,31}$/.test(account.username || '') || !/^[a-f0-9]{32}$/.test(account.salt || '') || !/^[a-f0-9]{64}$/.test(account.hash || '') || !/^[a-f0-9]{16}$/.test(account.version || '')) fail_('CONFIG', 'Login configuration is invalid.');
+  return account;
+}
+function accountRequest_(request, config) {
+  // Caller holds ScriptLock: account creation and attempt accounting are atomic.
+  var props = PropertiesService.getScriptProperties();
+  var account = account_();
+  if (request.action === 'configureLogin') {
+    if (account) fail_('LOGIN_ALREADY_CONFIGURED', 'The manager account is already configured.');
+    var username = typeof request.username === 'string' ? request.username.trim().toLowerCase() : '';
+    if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username) || typeof request.password !== 'string' || request.password.length < 12 || request.password.length > 128) fail_('INVALID_DATA', 'Use a username of 3–32 letters/numbers and a password of 12–128 characters.');
+    var salt = Utilities.getUuid().replace(/-/g, '');
+    account = { username: username, salt: salt, hash: passwordHash_(request.password, salt), version: Utilities.getUuid().replace(/-/g, '').slice(0, 16) };
+    props.setProperty('QLCT_LOGIN', JSON.stringify(account));
+    return issueSession_(account, config);
+  }
+  if (!account) fail_('LOGIN_NOT_CONFIGURED', 'The manager account has not been configured yet.');
+  if (request.action === 'exchange') return issueSession_(account, config);
+  var now = Date.now();
+  var attempts;
+  try { attempts = JSON.parse(props.getProperty('QLCT_LOGIN_ATTEMPTS') || 'null'); } catch (_) { attempts = null; }
+  if (!object_(attempts) || !Number.isSafeInteger(attempts.until) || !Number.isSafeInteger(attempts.count) || attempts.until <= now) attempts = { count: 0, until: now + 15 * 60 * 1000 };
+  if (attempts.count >= 5) fail_('RATE_LIMITED', 'Too many login attempts. Try again after 15 minutes.');
+  // Record first, so an interrupted/aborted KDF cannot bypass the attempt limit.
+  attempts.count++;
+  props.setProperty('QLCT_LOGIN_ATTEMPTS', JSON.stringify(attempts));
+  var validPassword = typeof request.password === 'string' && request.password.length >= 12 && request.password.length <= 128;
+  var hash = validPassword ? passwordHash_(request.password, account.salt) : '';
+  var suppliedUsername = typeof request.username === 'string' ? request.username.trim().toLowerCase() : '';
+  var validHash = sameToken_(hash, account.hash);
+  if (!validHash || !sameToken_(suppliedUsername, account.username)) fail_('AUTH_FAILED', 'Invalid username or password.');
+  props.setProperty('QLCT_LOGIN_ATTEMPTS', JSON.stringify({ count: 0, until: now + 15 * 60 * 1000 }));
+  return issueSession_(account, config);
+}
+function sessionMac_(payload, config) {
+  return authHex_(QLCTCrypto.hmac(QLCTCrypto.sha256, authBytes_(config.token), authBytes_('QLCT session v1:' + payload)));
+}
+function issueSession_(account, config) {
+  var expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  var payload = Utilities.base64Encode(JSON.stringify({ u: account.username, v: account.version, e: expiresAt, n: Utilities.getUuid().replace(/-/g, '').slice(0, 16) }), Utilities.Charset.UTF_8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return { ok: true, token: 'qlct1.' + payload + '.' + sessionMac_(payload, config), expiresAt: expiresAt, username: account.username };
+}
+function authorize_(token, config) {
+  if (sameToken_(token, config.token)) return;
+  if (typeof token !== 'string' || token.length > 256 || !/^qlct1\.[A-Za-z0-9_-]+\.[a-f0-9]{64}$/.test(token)) fail_('UNAUTHORIZED', 'Invalid connection key or session.');
+  var pieces = token.split('.');
+  if (!sameToken_(pieces[2], sessionMac_(pieces[1], config))) fail_('AUTH_FAILED', 'Invalid session. Please sign in again.');
+  var payload;
+  try {
+    var encoded = pieces[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (encoded.length % 4) encoded += '=';
+    payload = JSON.parse(Utilities.newBlob(Utilities.base64Decode(encoded)).getDataAsString('UTF-8'));
+  } catch (_) { fail_('AUTH_FAILED', 'Invalid session. Please sign in again.'); }
+  var account = account_();
+  if (!object_(payload) || !Number.isSafeInteger(payload.e) || !/^[a-f0-9]{16}$/.test(payload.n || '')) fail_('AUTH_FAILED', 'Invalid session. Please sign in again.');
+  if (!account || payload.u !== account.username || payload.v !== account.version || payload.e <= Date.now() || payload.e > Date.now() + 30 * 24 * 60 * 60 * 1000) fail_('SESSION_EXPIRED', 'Session expired. Please sign in again.');
 }
 function json_(value) { return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON); }
 function fail_(code, message) { var error = new Error(message); error.code = code; throw error; }

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Data } from './domain'
 import { loadSheets, saveSheets, SheetsError, SHEETS_ENDPOINT_KEY, validateSheetsConfig, type SheetsConnectionConfig } from './sheets'
-import { readSheetsCheckpoint, reconcileSnapshots, SHEETS_SYNC_KEY, snapshotDigest, type SheetsCheckpoint } from './sheets-sync'
+import { readSheetsCheckpoint, reconcileSnapshots, SHEETS_SYNC_KEY, snapshotDigest, writeSheetsCheckpoint, type SheetsCheckpoint } from './sheets-sync'
+import { companyManaged, COMPANY_AUTH_EVENT, getCompanyToken } from './company-config'
 
 interface Options {
   data: Data
@@ -50,11 +51,11 @@ export function useSheetsSync(options: Options) {
     if (retryTimer.current) clearTimeout(retryTimer.current)
     timer.current = null; retryTimer.current = null
   }
-  function valid(run: number) { return alive.current && !latest.current.disabled && generation.current === run }
+  function valid(run: number) { return alive.current && !latest.current.disabled && generation.current === run && (!companyManaged || getCompanyToken() === checkpoint.current?.config.token) }
   function persist(next: SheetsCheckpoint) {
     // Save the journal before sending: reload can reconcile a request whose response was lost.
     if (remember.current) {
-      try { localStorage.setItem(SHEETS_SYNC_KEY, JSON.stringify(next)) }
+      try { writeSheetsCheckpoint(next) }
       catch { throw new SheetsError('LOCAL_STORAGE', 'Không lưu được trạng thái đồng bộ trên thiết bị. Hãy sao lưu JSON và giải phóng dung lượng trình duyệt trước khi thử lại.') }
     }
     checkpoint.current = next
@@ -92,6 +93,11 @@ export function useSheetsSync(options: Options) {
     if (!valid(runId)) return
     verified.current = false
     const code = error instanceof SheetsError ? error.code : ''
+    if (companyManaged && ['UNAUTHORIZED', 'AUTH_FAILED', 'INVALID_TOKEN', 'SESSION_EXPIRED'].includes(code)) {
+      block('Phiên đăng nhập đã hết hạn. Dữ liệu chưa đồng bộ được giữ lại để tiếp tục sau khi đăng nhập.')
+      window.dispatchEvent(new Event(COMPANY_AUTH_EVENT))
+      return
+    }
     if (code === 'CONFLICT' || code === 'REVISION_CONFLICT') {
       block('Có thay đổi từ thiết bị khác. Dữ liệu trên máy vẫn được giữ. Hãy sao lưu JSON, rồi chọn “Tải từ Google Sheets” để nhận bản mới trước khi tiếp tục.')
       return

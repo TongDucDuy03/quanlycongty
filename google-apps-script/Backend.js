@@ -1,8 +1,10 @@
 /**
  * Bound Google Sheets web app, execute as owner, access Anyone.
  * The spreadsheet stays private. Every data request requires the installation
- * bearer token; anyone holding it has FULL access, including payroll.
+ * bearer token or a signed manager session. Both grant full access to payroll.
  * POST text/plain JSON: {action:'load'|'save', token, expectedRevision?, data?}.
+ * login uses username/password. configureLogin creates the account ONCE using
+ * the installation token. exchange migrates an existing trusted browser.
  * Never put the token in a URL, source code, build environment or repository.
  * No GET data API / JSONP. Follow ContentService's redirect; do not use no-cors.
  * Manual snapshot sync, 2 MiB UTF-8 JSON maximum; no real-time merge or RBAC.
@@ -48,7 +50,15 @@ function doPost(e) {
     if (typeof raw !== 'string' || raw.length > QLCT.maxBytes + 10000) fail_('LIMIT', 'Request exceeds the pilot storage limit.');
     var request;
     try { request = JSON.parse(raw); } catch (_) { fail_('INVALID_DATA', 'Invalid JSON request.'); }
-    if (!object_(request) || !sameToken_(request.token, config.token)) fail_('UNAUTHORIZED', 'Invalid connection key.');
+    if (!object_(request)) fail_('INVALID_DATA', 'Invalid request.');
+    if (['login', 'configureLogin', 'exchange'].indexOf(request.action) !== -1) {
+      if (raw.length > 2000) fail_('LIMIT', 'Login request is too large.');
+      if (request.action !== 'login' && !sameToken_(request.token, config.token)) fail_('AUTH_FAILED', 'Invalid credentials.');
+      lock = LockService.getScriptLock();
+      if (!lock.tryLock(10000)) fail_('BUSY', 'Another operation is running. Try again shortly.');
+      return json_(accountRequest_(request, config));
+    }
+    authorize_(request.token, config);
     if (request.action !== 'load' && request.action !== 'save') fail_('INVALID_DATA', 'Unknown action.');
     var serialized;
     if (request.action === 'save') {
@@ -83,7 +93,7 @@ function doPost(e) {
     catch (_) { result.warning = 'Data saved. Some report tabs could not be refreshed; load from the app remains authoritative.'; }
     return json_(result);
   } catch (error) {
-    var codes = ['UNAUTHORIZED', 'CONFLICT', 'INVALID_DATA', 'LIMIT', 'BUSY', 'CONFIG', 'INTERNAL'];
+    var codes = ['UNAUTHORIZED', 'CONFLICT', 'INVALID_DATA', 'LIMIT', 'BUSY', 'CONFIG', 'INTERNAL', 'AUTH_FAILED', 'RATE_LIMITED', 'LOGIN_NOT_CONFIGURED', 'LOGIN_ALREADY_CONFIGURED', 'SESSION_EXPIRED'];
     var known = error && codes.indexOf(error.code) !== -1;
     return json_({ ok: false, code: known ? error.code : 'INTERNAL', message: known ? error.message : 'Google Sheets operation failed. Check the deployment and try loading before saving again.' });
   } finally { if (lock && lock.hasLock()) lock.releaseLock(); }
@@ -138,6 +148,76 @@ function sameToken_(input, expected) {
   var difference = 0;
   for (var i = 0; i < expected.length; i++) difference |= input.charCodeAt(i) ^ expected.charCodeAt(i);
   return difference === 0;
+}
+
+// All password KDF inputs are byte arrays. Apps Script V8 has no TextEncoder;
+// Utilities performs UTF-8 conversion; noble supplies the cryptographic functions.
+function authBytes_(value) { return new Uint8Array(Utilities.newBlob(value).getBytes().map(function (byte) { return byte & 255; })); }
+function authHex_(bytes) { return Array.from(bytes).map(function (byte) { return ('0' + byte.toString(16)).slice(-2); }).join(''); }
+function passwordHash_(password, salt) {
+  return authHex_(QLCTCrypto.pbkdf2(QLCTCrypto.sha256, authBytes_(password), authBytes_(salt), { c: 600000, dkLen: 32 }));
+}
+function account_() {
+  var raw = PropertiesService.getScriptProperties().getProperty('QLCT_LOGIN');
+  if (!raw) return null;
+  var account;
+  try { account = JSON.parse(raw); } catch (_) { fail_('CONFIG', 'Login configuration is invalid.'); }
+  if (!object_(account) || !/^[a-z0-9][a-z0-9._-]{2,31}$/.test(account.username || '') || !/^[a-f0-9]{32}$/.test(account.salt || '') || !/^[a-f0-9]{64}$/.test(account.hash || '') || !/^[a-f0-9]{16}$/.test(account.version || '')) fail_('CONFIG', 'Login configuration is invalid.');
+  return account;
+}
+function accountRequest_(request, config) {
+  // Caller holds ScriptLock: account creation and attempt accounting are atomic.
+  var props = PropertiesService.getScriptProperties();
+  var account = account_();
+  if (request.action === 'configureLogin') {
+    if (account) fail_('LOGIN_ALREADY_CONFIGURED', 'The manager account is already configured.');
+    var username = typeof request.username === 'string' ? request.username.trim().toLowerCase() : '';
+    if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username) || typeof request.password !== 'string' || request.password.length < 12 || request.password.length > 128) fail_('INVALID_DATA', 'Use a username of 3–32 letters/numbers and a password of 12–128 characters.');
+    var salt = Utilities.getUuid().replace(/-/g, '');
+    account = { username: username, salt: salt, hash: passwordHash_(request.password, salt), version: Utilities.getUuid().replace(/-/g, '').slice(0, 16) };
+    props.setProperty('QLCT_LOGIN', JSON.stringify(account));
+    return issueSession_(account, config);
+  }
+  if (!account) fail_('LOGIN_NOT_CONFIGURED', 'The manager account has not been configured yet.');
+  if (request.action === 'exchange') return issueSession_(account, config);
+  var now = Date.now();
+  var attempts;
+  try { attempts = JSON.parse(props.getProperty('QLCT_LOGIN_ATTEMPTS') || 'null'); } catch (_) { attempts = null; }
+  if (!object_(attempts) || !Number.isSafeInteger(attempts.until) || !Number.isSafeInteger(attempts.count) || attempts.until <= now) attempts = { count: 0, until: now + 15 * 60 * 1000 };
+  if (attempts.count >= 5) fail_('RATE_LIMITED', 'Too many login attempts. Try again after 15 minutes.');
+  // Record first, so an interrupted/aborted KDF cannot bypass the attempt limit.
+  attempts.count++;
+  props.setProperty('QLCT_LOGIN_ATTEMPTS', JSON.stringify(attempts));
+  var validPassword = typeof request.password === 'string' && request.password.length >= 12 && request.password.length <= 128;
+  var hash = validPassword ? passwordHash_(request.password, account.salt) : '';
+  var suppliedUsername = typeof request.username === 'string' ? request.username.trim().toLowerCase() : '';
+  var validHash = sameToken_(hash, account.hash);
+  if (!validHash || !sameToken_(suppliedUsername, account.username)) fail_('AUTH_FAILED', 'Invalid username or password.');
+  props.setProperty('QLCT_LOGIN_ATTEMPTS', JSON.stringify({ count: 0, until: now + 15 * 60 * 1000 }));
+  return issueSession_(account, config);
+}
+function sessionMac_(payload, config) {
+  return authHex_(QLCTCrypto.hmac(QLCTCrypto.sha256, authBytes_(config.token), authBytes_('QLCT session v1:' + payload)));
+}
+function issueSession_(account, config) {
+  var expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  var payload = Utilities.base64Encode(JSON.stringify({ u: account.username, v: account.version, e: expiresAt, n: Utilities.getUuid().replace(/-/g, '').slice(0, 16) }), Utilities.Charset.UTF_8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return { ok: true, token: 'qlct1.' + payload + '.' + sessionMac_(payload, config), expiresAt: expiresAt, username: account.username };
+}
+function authorize_(token, config) {
+  if (sameToken_(token, config.token)) return;
+  if (typeof token !== 'string' || token.length > 256 || !/^qlct1\.[A-Za-z0-9_-]+\.[a-f0-9]{64}$/.test(token)) fail_('UNAUTHORIZED', 'Invalid connection key or session.');
+  var pieces = token.split('.');
+  if (!sameToken_(pieces[2], sessionMac_(pieces[1], config))) fail_('AUTH_FAILED', 'Invalid session. Please sign in again.');
+  var payload;
+  try {
+    var encoded = pieces[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (encoded.length % 4) encoded += '=';
+    payload = JSON.parse(Utilities.newBlob(Utilities.base64Decode(encoded)).getDataAsString('UTF-8'));
+  } catch (_) { fail_('AUTH_FAILED', 'Invalid session. Please sign in again.'); }
+  var account = account_();
+  if (!object_(payload) || !Number.isSafeInteger(payload.e) || !/^[a-f0-9]{16}$/.test(payload.n || '')) fail_('AUTH_FAILED', 'Invalid session. Please sign in again.');
+  if (!account || payload.u !== account.username || payload.v !== account.version || payload.e <= Date.now() || payload.e > Date.now() + 30 * 24 * 60 * 60 * 1000) fail_('SESSION_EXPIRED', 'Session expired. Please sign in again.');
 }
 function json_(value) { return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON); }
 function fail_(code, message) { var error = new Error(message); error.code = code; throw error; }

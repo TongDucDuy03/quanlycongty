@@ -48,6 +48,8 @@ import {
 } from "./domain";
 import { createSeedData } from "./seed";
 import SheetsConnection from "./SheetsConnection";
+import { CompanyAccount } from './CompanyGate';
+import { companyManaged, getCompanyToken } from './company-config';
 import {
   cloudAllowed,
   assertLocalDataCurrent,
@@ -176,6 +178,8 @@ function ModalFrame({
 }
 
 export default function App() {
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const [initial] = useState(loadData);
   const [data, setData] = useState(initial.data);
   const currentDataRef = useRef(data);
@@ -292,6 +296,7 @@ export default function App() {
     setAlerts(false);
   };
   const commit = (next: Data, message: string) => {
+    if (!mounted.current || companyManaged && !getCompanyToken()) return false;
     if (!validateData(next)) {
       setNotice("Dữ liệu chưa hợp lệ. Vui lòng kiểm tra các giá trị nhập.");
       return false;
@@ -1497,6 +1502,7 @@ export default function App() {
           )}
           <div hidden={page !== "settings"}>
             <div className="settings-grid">
+              <CompanyAccount />
               <SheetsConnection
                 data={data}
                 disabled={Boolean(cloudUser)}
@@ -1598,13 +1604,14 @@ export default function App() {
                     }}
                   />
                 </div>
-                <hr />
+                {!companyManaged && <><hr />
                 <button
                   className="text-button danger"
                   onClick={() => setModal({ type: "reset" })}
                 >
                   Đặt lại dữ liệu mẫu
                 </button>
+                </>}
               </section>
               {supabase && <section className="card settings-card">
                 <span className="settings-icon blue">

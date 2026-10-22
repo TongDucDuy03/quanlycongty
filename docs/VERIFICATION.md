@@ -2,6 +2,14 @@
 
 Ngày: 22/10/2026. Thư mục dự án: `D:\quản lý công ty`. Ban đầu thư mục trống, không có mã nguồn hoặc Git remote. Nhóm diey-team gồm nghiên cứu, kiến trúc, triển khai nghiệp vụ, QA độc lập và review độc lập. Lead tích hợp và kiểm tra bản cuối.
 
+## Google Sheet cố định và đăng nhập công ty — 22/10/2026
+
+- QA độc lập: **110/110 unit tests**, **64/64 E2E** (48 hồi quy và 16 đăng nhập công ty trên desktop/mobile), build production và kiểm tra bản build dưới đường dẫn con đều đạt.
+- Kiểm tra đăng nhập mới, hai thiết bị đồng bộ, chuyển khóa cũ sang phiên, hết phiên giữ chỉnh sửa, đăng xuất khóa tab khác, phản hồi muộn, ngoại tuyến và cache khác công ty. Browser tests dùng API giả lập.
+- `verify:dist` hỗ trợ cả demo và bản công ty, kiểm tra đăng nhập, reload đường dẫn con, payroll tải động, sáng/tối và desktop/mobile. Ảnh preview dùng dữ liệu giả.
+- Apps Script thật đã cập nhật **phiên bản 2** trên endpoint hiện có. Tạo tài khoản quản lý một lần, đăng nhập thực tế khoảng 5,8 giây, tải được snapshot revision 3; toàn bộ dữ liệu giống trước cập nhật. Yêu cầu không có phiên bị từ chối `UNAUTHORIZED`.
+- Mật khẩu được bàn giao bằng tệp riêng ngoài repository; không nằm trong mã nguồn, môi trường build hay tài liệu công khai. Tài khoản chung chưa phân quyền từng nhân viên.
+
 ## Tự động đồng bộ Google Sheets — 22/10/2026
 
 - Kết nối được ghi nhớ trên từng trình duyệt khi người dùng chọn; khóa nằm ngoài dữ liệu nghiệp vụ và bản sao JSON. Mở lại tự kết nối; thay đổi đã lưu trong biểu mẫu tự gửi sau khoảng 1,5 giây. Có trạng thái lưu và đường dẫn đến phần xử lý kết nối ở đầu trang.

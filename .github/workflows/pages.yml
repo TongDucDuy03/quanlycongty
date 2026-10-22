@@ -26,6 +26,9 @@ jobs:
       - run: npm run build
         env:
           VITE_DEMO_ONLY: 'true'
+          # Public endpoint only; the manager password and signing key stay on Apps Script.
+          VITE_COMPANY_ENDPOINT: 'https://script.google.com/macros/s/AKfycbyeqY2wUAY7RkVtmaw7PWRuvEf0M5iSWtQZvjzQMgjA_JNXpR2Q-AJiptIcerj6_4P7/exec'
+          VITE_COMPANY_NAME: 'Quản lý công ty'
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

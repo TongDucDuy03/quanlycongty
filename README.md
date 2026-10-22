@@ -15,7 +15,7 @@ npm ci
 npm run dev
 ```
 
-Mở địa chỉ Vite in ra, thường là `http://localhost:5173`. Trình duyệt hiện đại có hỗ trợ ES2022 và native dialog. Không cần Google/Supabase để demo.
+Mở địa chỉ Vite in ra, thường là `http://localhost:5173`. Trình duyệt hiện đại có hỗ trợ ES2022 và native dialog. Khi không đặt `VITE_COMPANY_ENDPOINT`, bản phát triển chạy demo cục bộ, không cần Google/Supabase.
 
 ```sh
 npm run build
@@ -36,8 +36,8 @@ Không mở `dist/index.html` bằng `file://`; cần web server. Giao diện đ
 - **Chấm công:** theo người/ngày, giờ thường, phép hưởng lương và tăng ca theo ba nhóm ngày; tổng hợp tháng, không tính trùng một người/ngày.
 - **Cấu hình lương:** ngày công chuẩn, giờ/ngày, hệ số tăng ca, tỷ lệ bảo hiểm, danh mục phụ cấp và mức mặc định.
 - **Bảng lương:** công thức thu nhập/thực lĩnh rõ ràng; thưởng, tạm ứng, khấu trừ, thuế nhập tay; chi tiết lương, CSV, chốt tháng giữ nguyên lịch sử và mở lại có xác nhận.
-- **Dữ liệu:** CSV để mở trong Sheets/Excel, sao lưu/khôi phục JSON được kiểm tra, đặt lại dữ liệu mẫu có xác nhận.
-- **Google Sheets:** cấu hình một lần trên mỗi thiết bị, tự kết nối khi mở lại, tự lưu sau thay đổi và kiểm tra dữ liệu mới khi quay lại ứng dụng. Kiểm tra phiên bản chống ghi đè, giữ đầy đủ chấm công và kỳ lương đã chốt. Sheet vẫn riêng tư; có các tab báo cáo để xem. Cần thiết lập theo [hướng dẫn](docs/GOOGLE_SHEETS.md).
+- **Dữ liệu:** CSV để mở trong Sheets/Excel, sao lưu/khôi phục JSON được kiểm tra; chế độ demo cục bộ có đặt lại dữ liệu mẫu với xác nhận.
+- **Google Sheets công ty:** cấu hình Sheet một lần cho hệ thống. Máy tính và điện thoại mở cùng đường link, đăng nhập tài khoản quản lý để nhận cùng dữ liệu; không nhập URL hoặc khóa kết nối trên từng thiết bị. Tự lưu sau thay đổi, kiểm tra dữ liệu mới khi quay lại ứng dụng và chống ghi đè giữa các thiết bị. Giữ đầy đủ chấm công, kỳ lương đã chốt và các tab báo cáo để xem. Người triển khai thiết lập theo [hướng dẫn](docs/GOOGLE_SHEETS.md).
 - **Supabase tùy chọn:** giữ bộ kết nối cũ cho môi trường đã cấu hình; không cần dùng khi chọn Google Sheets.
 
 Các nút thao tác cập nhật dữ liệu thực trong demo. Số phần trăm ở danh sách đơn phản ánh **mốc công đoạn**, còn số chi tiết hoàn thành theo dõi riêng ở chi tiết/bảng sản xuất. Kho chưa tự trừ theo định mức đơn hàng. Một đơn hiện có một dòng chi tiết. Tên, thông tin liên hệ và số liệu seed là giả lập.
@@ -46,9 +46,11 @@ Các nút thao tác cập nhật dữ liệu thực trong demo. Số phần tră
 
 ## Lưu dữ liệu bằng Google Sheets
 
-**Demo:** localStorage, không mất tiền/không cần tài khoản; không tự đồng bộ giữa điện thoại và máy tính. Nên xuất JSON trước khi xóa bộ nhớ trình duyệt. JSON khôi phục đầy đủ; CSV xuất riêng danh sách đơn hàng hoặc bảng lương của tháng được chọn.
+**Demo cục bộ khi không cấu hình endpoint công ty:** localStorage, không mất tiền/không cần tài khoản; không tự đồng bộ giữa điện thoại và máy tính. Nên xuất JSON trước khi xóa bộ nhớ trình duyệt. JSON khôi phục đầy đủ; CSV xuất riêng danh sách đơn hàng hoặc bảng lương của tháng được chọn.
 
-**Lựa chọn hiện tại: Google Sheets + Apps Script.** Tạo một Sheet mới, chạy `setup()` trong script của bạn, triển khai Web App rồi nhập URL `/exec` và khóa trong Cài đặt một lần trên mỗi thiết bị. Không cần Supabase hoặc thẻ thanh toán. Khi chọn ghi nhớ, cấu hình và khóa lưu trong localStorage trên thiết bị cá nhân; không nằm trong mã nguồn, URL hoặc bản sao JSON. Các thiết bị dùng cùng khóa có quyền đọc/ghi toàn bộ dữ liệu, gồm lương; chưa có quyền riêng từng nhân viên. Ngắt kết nối xóa cấu hình đã nhớ và giữ bản dữ liệu cục bộ.
+**Lựa chọn hiện tại: Google Sheets + Apps Script với cấu hình công ty cố định.** Người triển khai chuẩn bị Sheet, Apps Script, tài khoản quản lý và đặt URL `/exec` công khai trong `VITE_COMPANY_ENDPOINT` khi build. Mật khẩu và khóa quản trị không đưa vào mã nguồn hay cấu hình build. Không cần Supabase hoặc thẻ thanh toán. Người dùng mở cùng đường link trên máy tính/điện thoại rồi đăng nhập; không cần thiết lập Google Sheet riêng cho từng thiết bị.
+
+Phiên đăng nhập có thời hạn 30 ngày. Chọn ghi nhớ trên thiết bị cá nhân để tự kết nối khi mở lại; bỏ chọn để chỉ lưu phiên trong tab hiện tại. Khi hết hạn, đăng nhập lại và tiếp tục đồng bộ các thay đổi còn giữ trên máy. Ứng dụng xác thực với máy chủ trước khi hiển thị dữ liệu khi mở lại, nên bước này cần có mạng. Đăng xuất xóa phiên và bản lưu công ty trên thiết bị; nếu có thay đổi chưa đồng bộ, ứng dụng hỏi xác nhận và tải bản sao JSON trước khi xóa. Mật khẩu/phiên không nằm trong bản sao JSON. Tài khoản quản lý dùng chung có quyền đọc/ghi toàn bộ dữ liệu, gồm lương; chưa có tài khoản hoặc phân quyền riêng từng nhân viên.
 
 Đồng bộ tự động sau thay đổi, có khóa phía máy chủ và kiểm tra revision. Thay đổi lưu cục bộ trước; chờ trạng thái đã đồng bộ trước khi đóng trang. Khi mất mạng, ứng dụng đối chiếu lại bản Google trước khi gửi tiếp. Khi hai thiết bị cùng sửa, tự lưu tạm dừng để người dùng xử lý xung đột; không tự gộp dữ liệu. Giới hạn pilot 2 MiB JSON mỗi snapshot; không lưu ảnh/bản vẽ trong snapshot. Sửa dữ liệu trong ứng dụng, không sửa trực tiếp tab báo cáo để nhập ngược. Hướng dẫn: [docs/GOOGLE_SHEETS.md](docs/GOOGLE_SHEETS.md).
 
@@ -56,7 +58,7 @@ Bộ kết nối Supabase trước đây vẫn có trong mã nguồn, xem [docs/
 
 ## Đưa demo lên GitHub Pages
 
-GitHub Pages dùng cho **demo dữ liệu giả**, có thể kết nối một Google Sheet demo để thử đồng bộ. Workflow đặt `VITE_DEMO_ONLY=true` để tắt bộ kết nối Supabase và giao diện nhắc dùng dữ liệu giả. Không thêm khóa hoặc mật khẩu vào GitHub repository. Chính sách Pages có giới hạn cho kinh doanh/giao dịch nhạy cảm; đọc [nghiên cứu](docs/RESEARCH.md) trước khi chọn hosting vận hành thật.
+GitHub Pages dùng cho **demo dữ liệu giả**, có thể kết nối một Google Sheet demo để thử đồng bộ. Workflow đặt `VITE_DEMO_ONLY=true` để tắt bộ kết nối Supabase và giao diện nhắc dùng dữ liệu giả. `VITE_COMPANY_ENDPOINT` bật màn hình đăng nhập và kết nối Sheet cố định; `VITE_COMPANY_NAME` đặt tên hiển thị trên màn hình đăng nhập. Đây đều là cấu hình công khai, không phải nơi lưu bí mật. Không thêm khóa hoặc mật khẩu vào GitHub repository. Chính sách Pages có giới hạn cho kinh doanh/giao dịch nhạy cảm; đọc [nghiên cứu](docs/RESEARCH.md) trước khi chọn hosting vận hành thật.
 
 1. Tạo repository trên GitHub. Với GitHub Free, dùng repository public để có Pages miễn phí.
 2. Đẩy toàn bộ mã nguồn (không đẩy `node_modules`, `.env`, `dist`) lên nhánh `main`:
@@ -87,7 +89,7 @@ npx playwright test
 npm run verify:dist
 ```
 
-Unit tests kiểm tra nghiệp vụ, lương, lưu trữ, bộ kết nối Sheets và Apps Script giả lập. Playwright kiểm tra desktop/điện thoại, gồm kết nối một lần, tự lưu, mở lại trang, mất mạng, xung đột và bảo vệ biểu mẫu đang sửa. `verify:dist` kiểm tra bản build dưới đường dẫn repository và chụp ảnh sáng/tối. `verify:apps-script` kiểm tra mã triển khai khớp bộ kiểm tra nghiệp vụ. Đã xác nhận lưu/đọc dữ liệu demo với Google Apps Script thật trên tài khoản người dùng; Supabase thật chưa được kiểm thử. Kết quả từng bản nằm trong [biên bản kiểm tra](docs/VERIFICATION.md).
+Unit tests kiểm tra nghiệp vụ, lương, lưu trữ, bộ kết nối Sheets và Apps Script giả lập. Playwright kiểm tra desktop/điện thoại, gồm đăng nhập công ty, ghi nhớ phiên, đăng xuất, hết hạn phiên, tự lưu, mở lại trang, mất mạng, xung đột và bảo vệ biểu mẫu đang sửa; vẫn kiểm tra chế độ kết nối thủ công cũ trong bản phát triển. `verify:dist` kiểm tra bản build dưới đường dẫn repository và chụp ảnh sáng/tối. `verify:apps-script` kiểm tra mã triển khai khớp bộ kiểm tra nghiệp vụ. Bản kết nối Sheets trước đây đã xác nhận lưu/đọc với Google Apps Script thật; kết quả triển khai và xác minh phiên bản đăng nhập cố định được ghi riêng trong [biên bản kiểm tra](docs/VERIFICATION.md). Supabase thật chưa được kiểm thử.
 
 ## Tài liệu
 

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash, createHmac, pbkdf2Sync, randomUUID } from 'node:crypto'
 import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 import { createSeedData } from './seed'
@@ -15,6 +15,7 @@ function backend() {
   let failWrites = false
   let failReports = false
   let lockCount = 0
+  let now = Date.now()
   class Sheet {
     values = new Map<string, unknown>()
     rows = 1000
@@ -49,6 +50,7 @@ function backend() {
     },
   }
   const context = {
+    Date: class extends Date { static now() { return now } },
     PropertiesService: { getScriptProperties: () => ({ getProperty: (key: string) => properties.get(key) ?? null, setProperty: (key: string, value: string) => properties.set(key, value) }) },
     LockService: { getScriptLock: () => ({ waitLock: () => { if (busy) throw new Error('busy'); held = true; lockCount++ }, tryLock: () => { if (busy) return false; held = true; lockCount++; return true }, hasLock: () => held, releaseLock: () => { held = false } }) },
     SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet, openById: () => spreadsheet, flush: () => {} },
@@ -71,7 +73,7 @@ function backend() {
   runInNewContext(source, context)
   context.setup()
   const request = (body: Record<string, unknown>) => JSON.parse(context.doPost({ postData: { contents: JSON.stringify({ token: properties.get('QLCT_TOKEN'), ...body }) } }))
-  return { request, properties, sheets, spreadsheet, context, setBusy: (v: boolean) => { busy = v }, failWrites: () => { failWrites = true }, failReports: () => { failReports = true }, locks: () => lockCount, held: () => held }
+  return { request, properties, sheets, spreadsheet, context, advanceTime: (ms: number) => { now += ms }, setBusy: (v: boolean) => { busy = v }, failWrites: () => { failWrites = true }, failReports: () => { failReports = true }, locks: () => lockCount, held: () => held }
 }
 
 describe('Apps Script backend (mocked Google services; not a live deployment)', () => {
@@ -185,4 +187,89 @@ describe('Apps Script backend (mocked Google services; not a live deployment)', 
     expect(b.request({ action: 'save', expectedRevision: 0, data })).toMatchObject({ ok: false, code: 'LIMIT' })
     expect(b.properties.has('QLCT_COMMIT')).toBe(false)
   })
+})
+
+describe('manager account and signed sessions (mocked Apps Script V8 without TextEncoder)', () => {
+  const credentials = { username: 'admin', password: 'Test-only-safe-password-9384' }
+  const configured = () => {
+    const b = backend()
+    const session = b.request({ action: 'configureLogin', ...credentials })
+    expect(session.ok).toBe(true)
+    return { ...b, session }
+  }
+  it('requires master for initial setup and does not disclose data when login is not configured', () => {
+    const b = backend()
+    expect(b.request({ action: 'configureLogin', token: '', ...credentials })).toMatchObject({ ok: false, code: 'AUTH_FAILED' })
+    expect(b.request({ action: 'login', ...credentials })).toMatchObject({ ok: false, code: 'LOGIN_NOT_CONFIGURED' })
+    expect(b.request({ action: 'exchange' })).toMatchObject({ ok: false, code: 'LOGIN_NOT_CONFIGURED' })
+    expect(b.properties.has('QLCT_LOGIN')).toBe(false)
+  })
+  it('stores standard salted PBKDF2-SHA256 at 600k rounds and never stores/returns password or master', () => {
+    const b = configured()
+    const account = JSON.parse(b.properties.get('QLCT_LOGIN')!)
+    expect(account.hash).toBe(pbkdf2Sync(credentials.password, account.salt, 600000, 32, 'sha256').toString('hex'))
+    expect(JSON.stringify(account)).not.toContain(credentials.password)
+    expect(JSON.stringify(b.session)).not.toContain(b.properties.get('QLCT_TOKEN'))
+    const [prefix, payload, signature] = b.session.token.split('.')
+    expect(prefix).toBe('qlct1')
+    expect(signature).toBe(createHmac('sha256', b.properties.get('QLCT_TOKEN')!).update('QLCT session v1:' + payload).digest('hex'))
+    expect(b.session.token.length).toBeLessThanOrEqual(256)
+    expect(b.request({ action: 'configureLogin', ...credentials })).toMatchObject({ ok: false, code: 'LOGIN_ALREADY_CONFIGURED' })
+  }, 20000)
+  it('logs in on another device, accepts signed sessions, exchanges legacy master and preserves CAS', () => {
+    const b = configured(), data = createSeedData()
+    const login = b.request({ action: 'login', token: '', ...credentials })
+    expect(login).toMatchObject({ ok: true, username: credentials.username, expiresAt: expect.any(Number) })
+    expect(login.token).not.toBe(b.session.token)
+    expect(b.request({ action: 'save', token: login.token, expectedRevision: 0, data })).toMatchObject({ ok: true, revision: 1 })
+    expect(b.request({ action: 'load', token: b.session.token })).toMatchObject({ ok: true, data, revision: 1 })
+    expect(b.request({ action: 'save', token: b.session.token, expectedRevision: 0, data })).toMatchObject({ ok: false, code: 'CONFLICT' })
+    expect(b.request({ action: 'exchange' })).toMatchObject({ ok: true, username: credentials.username })
+    expect(b.request({ action: 'exchange', token: login.token })).toMatchObject({ ok: false, code: 'AUTH_FAILED' })
+    expect(b.request({ action: 'load' })).toMatchObject({ ok: true, revision: 1 })
+  }, 20000)
+  it('rejects forged signatures, expired sessions, changed auth version and changed master without disclosing data', () => {
+    const b = configured()
+    const token = b.session.token
+    const forged = token.slice(0, -1) + (token.endsWith('a') ? 'b' : 'a')
+    expect(b.request({ action: 'load', token: forged })).toMatchObject({ ok: false, code: 'AUTH_FAILED' })
+    const account = JSON.parse(b.properties.get('QLCT_LOGIN')!)
+    b.properties.set('QLCT_LOGIN', JSON.stringify({ ...account, version: 'a'.repeat(16) }))
+    expect(b.request({ action: 'load', token })).toMatchObject({ ok: false, code: 'SESSION_EXPIRED' })
+    b.properties.set('QLCT_LOGIN', JSON.stringify(account))
+    b.advanceTime(30 * 24 * 60 * 60 * 1000)
+    expect(b.request({ action: 'load', token })).toMatchObject({ ok: false, code: 'SESSION_EXPIRED' })
+    b.properties.set('QLCT_TOKEN', 'b'.repeat(96))
+    expect(b.request({ action: 'load', token })).toMatchObject({ ok: false, code: 'AUTH_FAILED' })
+    expect(b.held()).toBe(false)
+  }, 20000)
+  it('counts wrong and bogus-user attempts together, blocks valid credentials during cooldown, then permits login', () => {
+    const b = configured()
+    for (let index = 0; index < 5; index++) {
+      expect(b.request({ action: 'login', username: index % 2 ? 'admin' : 'bogus', password: 'bad' })).toMatchObject({ ok: false, code: 'AUTH_FAILED' })
+    }
+    expect(b.request({ action: 'login', ...credentials })).toMatchObject({ ok: false, code: 'RATE_LIMITED' })
+    expect(b.held()).toBe(false)
+    b.advanceTime(15 * 60 * 1000)
+    expect(b.request({ action: 'login', ...credentials })).toMatchObject({ ok: true })
+    expect(JSON.parse(b.properties.get('QLCT_LOGIN_ATTEMPTS')!).count).toBe(0)
+  }, 20000)
+  it('rejects a full-length wrong password and a correct password for another username', () => {
+    const b = configured()
+    expect(b.request({ action: 'login', ...credentials, password: 'Wrong-password-938492' })).toMatchObject({ ok: false, code: 'AUTH_FAILED' })
+    expect(b.request({ action: 'login', ...credentials, username: 'other-manager' })).toMatchObject({ ok: false, code: 'AUTH_FAILED' })
+    expect(b.properties.has('QLCT_COMMIT')).toBe(false)
+    expect(JSON.parse(b.properties.get('QLCT_LOGIN_ATTEMPTS')!).count).toBe(2)
+  }, 20000)
+  it('validates account inputs, preserves existing snapshot and bounds maximum-length username sessions', () => {
+    const b = backend()
+    expect(b.request({ action: 'configureLogin', ...credentials, password: 'short' })).toMatchObject({ ok: false, code: 'INVALID_DATA' })
+    expect(b.request({ action: 'configureLogin', ...credentials, username: '../no' })).toMatchObject({ ok: false, code: 'INVALID_DATA' })
+    const data = createSeedData()
+    b.request({ action: 'save', expectedRevision: 0, data })
+    const session = b.request({ action: 'configureLogin', ...credentials, username: 'a'.repeat(32) })
+    expect(session.ok).toBe(true)
+    expect(session.token.length).toBeLessThanOrEqual(256)
+    expect(b.request({ action: 'load', token: session.token })).toMatchObject({ ok: true, data, revision: 1 })
+  }, 20000)
 })

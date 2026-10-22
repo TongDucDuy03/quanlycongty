@@ -1,5 +1,19 @@
 # Kết nối Google Sheets
 
+## Bản dùng chung đã cấu hình sẵn
+
+Bản trên GitHub Pages dùng **một Google Sheet cố định cho công ty**. Trên máy tính hoặc điện thoại, mở cùng đường link và đăng nhập tài khoản quản lý. Không nhập URL Apps Script hay khóa kết nối. Chọn ghi nhớ đăng nhập trên thiết bị cá nhân để tự vào lại trong thời hạn phiên (30 ngày).
+
+Sau khi lưu đơn hàng, chấm công hoặc bảng lương, dữ liệu tự gửi lên cùng Sheet. Chờ trạng thái **đã đồng bộ** trước khi đóng trang. Khi quay lại ứng dụng hoặc kiểm tra định kỳ, thiết bị nhận dữ liệu mới; hai máy sửa đồng thời có thể cần xử lý xung đột. Khi phiên hết hạn, đăng nhập lại bằng tài khoản quản lý; cấu hình Sheet không thay đổi.
+
+**Đăng xuất** xóa phiên và bản lưu công ty trên thiết bị. Nếu còn thay đổi chưa đồng bộ, ứng dụng hỏi trước và tải bản sao JSON khi bạn xác nhận. Không dùng tài khoản Google làm mật khẩu ứng dụng. Đây là một tài khoản quản lý chung, chưa có phân quyền nhân viên.
+
+Thông tin đăng nhập được bàn giao riêng cho chủ hệ thống, không nằm trong repository hoặc hướng dẫn công khai. Trình duyệt dùng mã phiên có hạn; khóa quản trị Apps Script không được nhúng vào mã nguồn. Trình duyệt cũ đã có kết nối được chuyển sang phiên đăng nhập tự động và bỏ khóa cũ khỏi cấu hình trình duyệt.
+
+## Dành cho người triển khai một hệ thống mới
+
+Các bước phía dưới dành cho kỹ thuật viên cài một hệ thống khác. Người dùng bản đã cấu hình sẵn **không làm lại các bước này trên từng thiết bị**.
+
 Ứng dụng dùng Google Sheets làm nơi lưu chung cho máy tính và điện thoại, qua một Web App Google Apps Script trong tài khoản của bạn. Không cần Supabase, thẻ thanh toán hoặc service-account key. Google vẫn áp dụng hạn mức Apps Script; đây là bản chạy thử cho một chủ xưởng hoặc nhóm quản lý tin cậy, chưa có quyền riêng cho từng nhân viên.
 
 ## Cần chuẩn bị
@@ -10,7 +24,7 @@
 
 Chỉ gửi link Google Sheet chưa đủ để ứng dụng ghi dữ liệu. Sau thiết lập, ứng dụng cần **URL Web App kết thúc bằng `/exec`** và **khóa kết nối**. Nhập khóa trực tiếp trong ứng dụng; không gửi khóa qua chat, không đưa vào GitHub hoặc URL.
 
-## Thiết lập một lần
+## Thiết lập nền tảng lưu trữ một lần
 
 1. Tạo Sheet mới, đặt tên **Quản lý công ty**. Mở **Tiện ích mở rộng → Apps Script**.
 2. Thay nội dung `Code.gs` bằng toàn bộ mã từ [file Code.gs](../google-apps-script/Code.gs), rồi lưu. Không dán dấu ``` bao quanh mã.
@@ -24,14 +38,23 @@ Chỉ gửi link Google Sheet chưa đủ để ứng dụng ghi dữ liệu. Sa
 
 Khi cập nhật `Code.gs`, phải vào **Deploy → Manage deployments → Edit → Version: New version → Deploy**. Chỉ lưu file không cập nhật bản `/exec` đang dùng.
 
-## Cách dùng hằng ngày
+Để bật bản dùng chung có đăng nhập:
+
+1. Sau khi backend mới được triển khai, gọi POST `configureLogin` với khóa quản trị hiện có, tên tài khoản quản lý và mật khẩu mạnh. API này chỉ khởi tạo tài khoản một lần, không ghi đè tài khoản đã tồn tại. Không đưa các giá trị bí mật vào URL, file được Git theo dõi hoặc log.
+2. Đặt `VITE_COMPANY_ENDPOINT` bằng URL `/exec` trong môi trường build Pages, và `VITE_COMPANY_NAME` bằng tên hiển thị. Đây là URL công khai, không phải khóa. Không có biến `VITE_*` chứa mật khẩu hoặc khóa quản trị.
+3. Build và deploy frontend. Thiết bị mới thấy màn hình đăng nhập và tự nhận dữ liệu sau xác thực. Cache công ty được tách khỏi demo; không tự đẩy dữ liệu mẫu lên công ty.
+4. Tài khoản dùng PBKDF2-SHA256 600.000 vòng; phiên được ký bằng HMAC, hết hạn sau 30 ngày. Sai đăng nhập 5 lần trong cửa sổ 15 phút sẽ tạm giới hạn thử tiếp. Khóa quản trị cũ chỉ dành cho bảo trì và chuyển phiên, không chia sẻ cho người dùng hằng ngày.
+
+Các bước nhập URL/khóa ở chế độ phát triển chỉ còn dành cho bản không đặt `VITE_COMPANY_ENDPOINT`.
+
+## Cách đồng bộ và sao lưu
 
 1. Mở ứng dụng. Trên thiết bị đã ghi nhớ kết nối, ứng dụng tự kiểm tra và nhận dữ liệu mới.
 2. Thêm/sửa đơn, kho, chấm công hoặc lương như bình thường. Khi bạn hoàn tất thao tác trong biểu mẫu, thay đổi được lưu trên thiết bị rồi tự gửi lên Sheet sau khoảng 1–2 giây.
 3. Chờ trạng thái **đã đồng bộ** trước khi đóng ứng dụng. **Đồng bộ ngay** dùng để yêu cầu kiểm tra ngay, không phải bước bắt buộc sau mỗi lần sửa.
 4. Xuất **Sao lưu JSON** định kỳ và trước khi đổi kết nối. CSV phục vụ xem bảng; JSON giữ đầy đủ dữ liệu khôi phục.
 
-Ứng dụng **tự đồng bộ** khi có thay đổi, khi mở lại/quay lại cửa sổ và kiểm tra định kỳ lúc trang đang mở. Đây không phải đồng bộ tức thì từng ký tự. Khi chọn ghi nhớ, URL và khóa được lưu trong localStorage của trình duyệt trên thiết bị đó; không đưa vào mã nguồn, URL hay tệp sao lưu JSON. Chỉ ghi nhớ trên thiết bị cá nhân. Ngắt kết nối xóa thông tin kết nối đã ghi nhớ nhưng **không xóa bản dữ liệu trên thiết bị**. Xóa dữ liệu trình duyệt, dùng chế độ riêng tư hoặc đổi thiết bị có thể cần cấu hình lại.
+Ứng dụng **tự đồng bộ** khi có thay đổi, khi mở lại/quay lại cửa sổ và kiểm tra định kỳ lúc trang đang mở. Đây không phải đồng bộ tức thì từng ký tự. Trong bản công ty cố định, thiết bị chỉ lưu phiên đăng nhập, không lưu mật khẩu hay khóa quản trị. Xóa dữ liệu trình duyệt, đổi thiết bị hoặc phiên hết hạn thì đăng nhập lại, không cấu hình lại Sheet. Chế độ kỹ thuật không có endpoint cố định vẫn hỗ trợ ghi nhớ khóa trên thiết bị và ngắt kết nối như trước.
 
 Nếu hai thiết bị cùng sửa một phiên bản, ứng dụng tạm dừng tự lưu và báo xung đột để tránh ghi đè. Xuất JSON của bản chưa gửi, nhận bản mới nhất, rồi nhập lại những thay đổi cần giữ. Chưa có tự gộp hai bản; tải lại trang không tự bỏ qua xung đột.
 
@@ -53,7 +76,7 @@ Giới hạn bản tích hợp này là **2 MiB (2.097.152 byte) cho mỗi snaps
 - **Xung đột:** giữ JSON bản trên thiết bị trước, tải bản mới rồi xử lý thay đổi; không có nút ép ghi đè.
 - **Sheet bị sửa tay/hỏng:** không khởi tạo đè để chữa lỗi. Giữ bản sao Sheet và JSON, kiểm tra các vùng dữ liệu với người triển khai.
 
-GitHub Pages của dự án vẫn dành cho trình diễn bằng dữ liệu giả. Có thể nối một Sheet demo để thử giữa hai thiết bị. Trước khi đưa dữ liệu lương thật vào vận hành, dùng môi trường hosting phù hợp và kiểm tra quyền thực tế. Bản kết nối này dùng chung một khóa quản lý, chưa có đăng nhập Google từng nhân viên, phân quyền phòng ban hoặc nhật ký ai thay đổi.
+GitHub Pages của dự án vẫn dành cho trình diễn bằng dữ liệu giả. Trước khi đưa dữ liệu lương thật vào vận hành, dùng môi trường hosting phù hợp và kiểm tra quyền thực tế. Bản cố định có tài khoản quản lý và phiên đăng nhập; chưa có đăng nhập Google từng nhân viên, phân quyền phòng ban hoặc nhật ký ai thay đổi.
 
 ## Kiểm tra nghiệm thu trên tài khoản Google của bạn
 

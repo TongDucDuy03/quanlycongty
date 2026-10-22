@@ -2,10 +2,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Data } from "./domain";
 import { statusLabels, validateData } from "./domain";
 import { createSeedData } from "./seed";
+import { companyManaged, COMPANY_DATA_KEY } from './company-config';
 
-const KEY = "xuong-viet.data.v1";
+const KEY = companyManaged ? COMPANY_DATA_KEY : "xuong-viet.data.v1";
 const storageKey = (scope?: string) =>
   scope === undefined ? KEY : `${KEY}.user.${scope}`;
+const fallbackData = (): Data => companyManaged
+  ? { version: 1, orders: [], materials: [], customers: [], movements: [] }
+  : createSeedData();
 
 export function loadData(scope?: string): {
   data: Data;
@@ -15,16 +19,16 @@ export function loadData(scope?: string): {
   let token: string | null = null;
   try {
     token = localStorage.getItem(storageKey(scope));
-    if (token === null) return { data: createSeedData(), token };
+    if (token === null) return { data: fallbackData(), token, ...(companyManaged ? { warning: 'Bản lưu công ty không còn trên thiết bị. Hãy đăng nhập lại để tải dữ liệu trước khi chỉnh sửa.' } : {}) };
     const data: unknown = JSON.parse(token);
     if (!validateData(data)) throw new Error("invalid");
     return { data, token };
   } catch {
     return {
-      data: createSeedData(),
+      data: fallbackData(),
       token,
       warning:
-        "Không đọc được dữ liệu đã lưu. Đang hiển thị dữ liệu mẫu; hãy kiểm tra bản sao lưu trước khi thay đổi.",
+        companyManaged ? "Không đọc được bản lưu công ty. Hãy giữ bản sao và đăng nhập lại trước khi chỉnh sửa." : "Không đọc được dữ liệu đã lưu. Đang hiển thị dữ liệu mẫu; hãy kiểm tra bản sao lưu trước khi thay đổi.",
     };
   }
 }
@@ -113,6 +117,7 @@ export function exportCSV(data: Data) {
 const env = import.meta.env;
 const hostname = globalThis.location?.hostname ?? "";
 export const cloudAllowed =
+  !companyManaged &&
   hostname !== "github.io" &&
   !hostname.endsWith(".github.io") &&
   env.VITE_DEMO_ONLY !== "true";

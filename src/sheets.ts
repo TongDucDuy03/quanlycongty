@@ -32,6 +32,7 @@ const validRevision = (value: unknown): value is number => typeof value === 'num
 const messages: Record<string, string> = {
   UNAUTHORIZED: 'Khóa kết nối không đúng hoặc đã được thay đổi.',
   AUTH_FAILED: 'Khóa kết nối không đúng hoặc đã được thay đổi.',
+  SESSION_EXPIRED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để đồng bộ.',
   INVALID_TOKEN: 'Khóa kết nối không đúng hoặc đã được thay đổi.',
   CONFLICT: 'Google Sheets đã có bản mới từ người khác. Hãy tải bản sao JSON rồi tải lại dữ liệu từ Sheet.',
   REVISION_CONFLICT: 'Google Sheets đã có bản mới từ người khác. Hãy tải bản sao JSON rồi tải lại dữ liệu từ Sheet.',
