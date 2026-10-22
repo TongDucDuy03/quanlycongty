@@ -11,6 +11,7 @@ Ngày: 22/10/2026. Thư mục dự án: `D:\quản lý công ty`. Ban đầu th�
 - Review độc lập phát hiện backend kiểm tra schema chưa đủ chặt: đã thay bằng cùng bộ `validateData` của frontend, sinh vào `Code.gs`. Các trường hợp ngày sai, cấu hình lương sai, mã nhân viên/công trùng, kỳ lương hỏng và tổng đơn không an toàn bị từ chối trước commit; dữ liệu cũ và revision được giữ nguyên. Đã thống nhất độ dài khóa 32–256 ký tự.
 - Vitest cập nhật 4.1.12; npm báo **0 lỗ hổng** sau cập nhật. Bộ kiểm tra đầy đủ chạy đạt trên phiên bản mới.
 - **Chưa kiểm thử Google thật:** chưa có deployment Apps Script của chủ tài khoản. CORS/redirect, cấp quyền Google, quota và hiệu năng thực tế phải được nghiệm thu sau thiết lập. Test mock không được coi là kết nối Google thật thành công.
+- **Đã xuất bản frontend:** commit `35f8e6d`, [workflow 39725904305](https://github.com/TongDucDuy03/quanlycongty/actions/runs/39725904305) thành công. Kiểm tra trực tiếp GitHub Pages trên desktop/mobile: màn hình kết nối Sheets, ô khóa che nội dung, link hướng dẫn, chế độ tối và phân hệ lương hiển thị; không lỗi JavaScript hoặc tràn ngang. Đây là xác minh frontend công khai, không phải kết nối dữ liệu Google thật.
 
 ## Kết quả bản bàn giao nhân sự trước khi bổ sung Sheets
 
