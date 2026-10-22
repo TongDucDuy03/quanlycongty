@@ -123,7 +123,7 @@ test('saving a private website draft does not change public content until explic
   const changedName = 'Công ty Cơ khí Sau Xuất Bản QA'
   await companyName.fill(changedName)
   await page.getByRole('button', { name: 'Xuất bản website', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('Hãy lưu bản nháp trước khi xuất bản.')
+  await expect(page.getByRole('alert')).toContainText('Hãy lưu bản nháp và chờ tải ảnh xong trước khi xuất bản.')
   expect(cloud.requests.filter(request => request.body?.action === 'publishCatalog')).toHaveLength(0)
   await page.getByRole('button', { name: 'Lưu bản nháp website', exact: true }).click()
   await expect.poll(() => cloud.state.data.commerce!.publicProfile.name).toBe(changedName)
@@ -180,7 +180,7 @@ test('unsaved website draft survives preview navigation and a cancelled workspac
   await companyName.fill('Tên đang soạn chưa lưu QA')
   await page.getByRole('button', { name: 'Xem trước bản nháp', exact: true }).click()
   const preview = page.getByRole('region', { name: 'Xem trước website', exact: true })
-  await preview.locator('a[href="#home"]').click()
+  await preview.locator('a.pub-brand[href="#home"]').click()
   await expect(page).toHaveURL(/#website$/)
   await preview.getByRole('link', { name: 'Đăng nhập quản lý', exact: false }).click()
   await expect(page).toHaveURL(/#website$/)

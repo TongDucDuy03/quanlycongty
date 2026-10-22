@@ -32,6 +32,10 @@ Khi doanh nghiệp chưa xuất bản nội dung, website hiển thị mẫu có
 
 Để cập nhật website: vào **Trang giới thiệu** (`#website`), điền hồ sơ công khai, thêm sản phẩm/dịch vụ và chọn các mục muốn hiển thị. Bấm **Lưu bản nháp website**, chờ trạng thái **Đã đồng bộ**, rồi bấm **Xuất bản website**. Xem trước bản nháp không làm thay đổi trang khách đang xem. Xuất bản chỉ lấy các trường công khai đã cho phép từ bản dữ liệu đã đồng bộ; chế độ demo cục bộ chỉ hỗ trợ xem trước.
 
+Trình biên tập cho phép thay logo, màu thương hiệu, ảnh bìa, bài giới thiệu, năng lực, giờ làm việc và liên kết Zalo/bản đồ; bật/tắt sáu phần giới thiệu, năng lực, sản phẩm, hình ảnh công việc, quy trình và liên hệ. Có thể thêm, nhân bản, ẩn và sắp xếp tối đa 100 sản phẩm, mỗi sản phẩm tối đa 6 ảnh; ảnh đầu tiên là ảnh bìa. Phần hình ảnh công việc có tối đa 12 mục kèm tiêu đề và mô tả. Sau khi triển khai phiên bản hỗ trợ trình biên tập, các cập nhật nội dung này thực hiện trong ứng dụng, không phải sửa code hay triển khai lại GitHub Pages.
+
+Tải ảnh trực tiếp từ máy tính/điện thoại hoặc chọn lại trong thư viện. Đầu vào JPG/PNG/WebP tối đa 10 MiB và 40 triệu điểm ảnh; ứng dụng chuyển thành JPEG tối đa 160 KiB, cạnh dài tối đa 1600 px, nền trong suốt thành trắng. Thư viện công ty lưu riêng trong Sheet, tối đa 80 ảnh hoặc 12 MiB; ảnh chưa xuất bản cần phiên quản lý để đọc. **Bỏ ảnh** chỉ gỡ khỏi vị trí đang sửa. Muốn xóa hẳn, bỏ các chỗ dùng ảnh, lưu và đồng bộ, xuất bản lại nếu cần, rồi xóa trong thư viện. Máy chủ chặn xóa ảnh còn được bản nháp đã lưu hoặc bản công khai tham chiếu.
+
 Biểu mẫu **Soạn email báo giá** mở ứng dụng email của khách. Khách kiểm tra nội dung, đính kèm bản vẽ và tự gửi; website chưa lưu yêu cầu vào hộp thư quản lý và không tự gửi email. Nút này cần email doanh nghiệp đã được cấu hình, xuất bản.
 
 ## Các luồng đã xây
@@ -43,7 +47,7 @@ Biểu mẫu **Soạn email báo giá** mở ứng dụng email của khách. Kh
 - **Khách hàng:** danh bạ, thêm khách, xem các đơn liên quan.
 - **Công nợ & phiếu thu:** giá trị đơn, tổng đã thu, số còn phải thu; mỗi lần thu tạo phiếu có ngày, phương thức, mã giao dịch và ghi chú. Chặn thu quá số còn lại; hủy phiếu có lý do sẽ hoàn lại công nợ tương ứng. Tiền đã thu trước khi nâng cấp được giữ là số dư đầu kỳ, không dựng phiếu lịch sử giả.
 - **Bán hàng & chứng từ:** lập báo giá, đề nghị thanh toán, phiếu giao hàng và phiếu thu từ một đơn có sẵn. Lưu hồ sơ đơn vị, thông tin ngân hàng; xem/lọc lịch sử, tải PDF tiếng Việt, in A4 hoặc tải bản HTML độc lập. Chứng từ giữ bản thông tin tại lúc lập, không tự đổi theo hồ sơ/đơn hàng được sửa sau đó.
-- **Website công khai:** giới thiệu doanh nghiệp, năng lực gia công, danh mục sản phẩm/dịch vụ, bộ lọc nhóm, xem chi tiết và liên hệ báo giá. Quản trị bản nháp và xuất bản riêng trong `#website`.
+- **Website công khai:** logo/màu thương hiệu, giới thiệu doanh nghiệp, năng lực, danh mục nhiều ảnh, bộ lọc nhóm, hình ảnh công việc và liên hệ báo giá. Tự sửa nội dung, tải ảnh, chọn bố cục và xem trước trong `#website`; lưu nháp riêng trước khi xuất bản.
 - **Nhân sự:** thêm/sửa hồ sơ, bộ phận, ngày vào/nghỉ, lương tháng/ngày/giờ, cơ sở bảo hiểm và phụ cấp từng người.
 - **Chấm công:** theo người/ngày, giờ thường, phép hưởng lương và tăng ca theo ba nhóm ngày; tổng hợp tháng, không tính trùng một người/ngày.
 - **Cấu hình lương:** ngày công chuẩn, giờ/ngày, hệ số tăng ca, tỷ lệ bảo hiểm, danh mục phụ cấp và mức mặc định.
@@ -67,7 +71,7 @@ Mỗi chứng từ hiện gắn với một đơn và một dòng chi tiết. Kh
 
 ## Lưu dữ liệu bằng Google Sheets
 
-**Demo cục bộ khi không cấu hình endpoint công ty:** localStorage, không mất tiền/không cần tài khoản; không tự đồng bộ giữa điện thoại và máy tính. Nên xuất JSON trước khi xóa bộ nhớ trình duyệt. JSON khôi phục đầy đủ; CSV xuất riêng danh sách đơn hàng hoặc bảng lương của tháng được chọn.
+**Demo cục bộ khi không cấu hình endpoint công ty:** dữ liệu nghiệp vụ trong localStorage, ảnh tải lên trong IndexedDB của trình duyệt; không mất tiền/không cần tài khoản và không tự đồng bộ giữa điện thoại và máy tính. Nên xuất JSON trước khi xóa bộ nhớ trình duyệt. JSON chứa dữ liệu và tham chiếu ảnh, không chứa tệp ảnh; giữ ảnh gốc riêng vì xóa dữ liệu trình duyệt cũng xóa thư viện ảnh demo. CSV xuất riêng danh sách đơn hàng hoặc bảng lương của tháng được chọn.
 
 **Lựa chọn hiện tại: Google Sheets + Apps Script với cấu hình công ty cố định.** Người triển khai chuẩn bị Sheet, Apps Script, tài khoản quản lý và đặt URL `/exec` công khai trong `VITE_COMPANY_ENDPOINT` khi build. Mật khẩu và khóa quản trị không đưa vào mã nguồn hay cấu hình build. Không cần Supabase hoặc thẻ thanh toán. Người dùng mở cùng đường link trên máy tính/điện thoại rồi đăng nhập; không cần thiết lập Google Sheet riêng cho từng thiết bị.
 
@@ -76,6 +80,8 @@ Mỗi chứng từ hiện gắn với một đơn và một dòng chi tiết. Kh
 Phiên đăng nhập có thời hạn 30 ngày. Chọn ghi nhớ trên thiết bị cá nhân để tự kết nối khi mở lại; bỏ chọn để chỉ lưu phiên trong tab hiện tại. Khi hết hạn, đăng nhập lại và tiếp tục đồng bộ các thay đổi còn giữ trên máy. Ứng dụng xác thực với máy chủ trước khi hiển thị dữ liệu khi mở lại, nên bước này cần có mạng. Đăng xuất xóa phiên và bản lưu công ty trên thiết bị; nếu có thay đổi chưa đồng bộ, ứng dụng hỏi xác nhận và tải bản sao JSON trước khi xóa. Mật khẩu/phiên không nằm trong bản sao JSON. Tài khoản quản lý dùng chung có quyền đọc/ghi toàn bộ dữ liệu, gồm lương; chưa có tài khoản hoặc phân quyền riêng từng nhân viên.
 
 Đồng bộ tự động sau thay đổi, có khóa phía máy chủ và kiểm tra revision. Thay đổi lưu cục bộ trước; chờ trạng thái đã đồng bộ trước khi đóng trang. Khi mất mạng, ứng dụng đối chiếu lại bản Google trước khi gửi tiếp. Khi hai thiết bị cùng sửa, tự lưu tạm dừng để người dùng xử lý xung đột; không tự gộp dữ liệu. Giới hạn pilot 2 MiB JSON mỗi snapshot; không lưu ảnh/bản vẽ trong snapshot. Sửa dữ liệu trong ứng dụng, không sửa trực tiếp tab báo cáo để nhập ngược. Hướng dẫn: [docs/GOOGLE_SHEETS.md](docs/GOOGLE_SHEETS.md).
+
+Bản công khai giới hạn 256 KiB; ảnh JPEG được lưu trong vùng riêng của Sheet với hạn mức thư viện nêu trên. Bản sao JSON chỉ chứa tham chiếu đến ảnh, nên cần giữ ảnh gốc và sao lưu cả Sheet nếu muốn bảo toàn thư viện khi chuyển hệ thống. PDF được tạo để tải về; bản vẽ chưa có chức năng tải/lưu trong ứng dụng.
 
 Bộ kết nối Supabase trước đây vẫn có trong mã nguồn, xem [docs/SUPABASE.md](docs/SUPABASE.md); đây là lựa chọn thay thế, không cần cấu hình cho Google Sheets.
 

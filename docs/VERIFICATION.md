@@ -2,6 +2,16 @@
 
 Ngày: 22/10/2026. Thư mục dự án: `D:\quản lý công ty`. Ban đầu thư mục trống, không có mã nguồn hoặc Git remote. Nhóm diey-team gồm nghiên cứu, kiến trúc, triển khai nghiệp vụ, QA độc lập và review độc lập. Lead tích hợp và kiểm tra bản cuối.
 
+## Website tự quản trị và thư viện ảnh — 22/10/2026
+
+- **155/155 unit tests** đạt; bổ sung kiểm tra schema website tương thích dữ liệu cũ, allowlist công khai, tắt section, media ref, ảnh JPEG, giới hạn kích thước/số lượng/dung lượng, lỗi ghi, checksum, thử lại idempotent, quyền ảnh nháp/ảnh công khai và xóa ảnh đang dùng. Mock Apps Script kiểm tra signed Byte[] để sát ranh giới API Google.
+- **26/26 ca CMS/public trên trình duyệt** đạt ở desktop/mobile: ảnh tải lên giữ riêng tư đến khi xuất bản, reload/thiết bị khác, chọn ảnh A rồi B khi phản hồi A chậm, bỏ ảnh đang tải, đóng sản phẩm/chuyển menu khi ảnh còn tải, dùng lại thư viện, SVG/quota báo lỗi không mất bản nháp, đổi thương hiệu/album/thứ tự/ẩn/xóa, chặn xóa ảnh đang xuất bản rồi cho xóa sau khi bỏ tham chiếu và xuất bản lại.
+- QA độc lập chạy hồi quy **108/108 E2E** đạt và thêm **2/2 ca album sản phẩm** trên desktop/mobile: chọn ảnh bìa, đổi thứ tự và chuyển ảnh trong chi tiết sản phẩm. Tổng **110 ca riêng biệt** đạt trên bản tích hợp cuối.
+- Build production, TypeScript, kiểm tra `Code.gs` và `verify:dist` đạt trên đường dẫn con với public/private, đăng nhập, payroll, PDF/font và sáng/tối desktop/mobile. QA độc lập đã xem giao diện CMS và website có ảnh thật của fixture, kiểm tra cả màu thương hiệu sáng; không tràn ngang/lỗi JavaScript.
+- Review đã sửa: giới hạn mô tả ảnh công việc khớp validator; mã hóa base64 dùng Byte[] có dấu của Apps Script; link xem trước giữ người dùng trong editor; phần bị tắt không còn nội dung/ảnh trong bản công khai. Ảnh riêng theo phiên không dùng chung cache với ảnh công khai; callback cũ không gán ảnh sau hủy/thay/đổi phiên.
+- Ảnh lưu riêng khỏi snapshot nghiệp vụ; bản sao JSON chỉ chứa tham chiếu. Thư viện demo cục bộ IndexedDB có kiểm tra quota phía client; bản công ty dùng kiểm tra dưới khóa backend. Chưa phải kho ảnh/CDN cho website có lượng truy cập lớn.
+- Apps Script thật đã cập nhật lên **phiên bản 5** lúc 15:16, giữ nguyên endpoint và OAuth scope. Kiểm tra thật: catalog hoạt động; mã ảnh không xuất bản trả `NOT_FOUND`; danh sách thư viện không có phiên trả `UNAUTHORIZED`. Không đổi quyền Sheet hoặc khởi tạo lại dữ liệu.
+
 ## Bán hàng, chứng từ và website công khai — 22/10/2026
 
 - **133/133 unit tests** đạt, gồm kiểm tra tiền thực nhận so với đề nghị thanh toán, dữ liệu cũ, hủy phiếu, bất biến lịch sử, giới hạn giao hàng, lọc dữ liệu công khai, quyền xuất bản, CAS và phục hồi sau lỗi ghi.

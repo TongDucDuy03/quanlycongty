@@ -4,7 +4,7 @@ import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 import { createSeedData } from './seed'
 import { validateData, type Data } from './domain'
-import { ensureCommerce, issueDocument, voidDocument } from './commerce'
+import { ensureCommerce, getWebsiteSettings, issueDocument, voidDocument } from './commerce'
 
 const source = readFileSync(new URL('../google-apps-script/Code.gs', import.meta.url), 'utf8')
 
@@ -20,6 +20,8 @@ function backend() {
   let onLock: (() => void) | undefined
   let privateReads = 0
   let failPublicWrites = false
+  let failMediaWrites = false
+  let failMediaRegistry = false
   class Sheet {
     values = new Map<string, unknown>()
     rows = 1000
@@ -33,6 +35,8 @@ function backend() {
         setValues: (values: unknown[][]) => {
           if (failWrites && /_[AB]$/.test(this.name)) throw new Error('Simulated write failure')
           if (failPublicWrites && /_P[AB]$/.test(this.name)) throw new Error('Simulated public write failure')
+          if (failMediaWrites && /_MEDIA$/.test(this.name)) throw new Error('Simulated image write failure')
+          if (failMediaRegistry && /_M[AB]$/.test(this.name)) throw new Error('Simulated image registry failure')
           values.forEach((line, r) => line.forEach((v, c) => this.values.set(`${row + r},${col + c}`, v)))
         },
         clearContent: () => { for (let r = row; r < row + rows; r++) for (let c = col; c < col + cols; c++) this.values.delete(`${r},${c}`) },
@@ -62,9 +66,13 @@ function backend() {
     Utilities: {
       getUuid: randomUUID,
       Charset: { UTF_8: 'utf8' }, DigestAlgorithm: { SHA_256: 'sha256' },
-      base64Encode: (value: string | number[]) => Buffer.from(typeof value === 'string' ? value : Uint8Array.from(value)).toString('base64'),
-      base64Decode: (value: string) => [...Buffer.from(value, 'base64')],
-      computeDigest: (_algorithm: string, value: string) => [...createHash('sha256').update(value).digest()],
+      base64Encode: (value: string | number[]) => {
+        // Apps Script Byte[] uses signed Java bytes, unlike Uint8Array.
+        if (Array.isArray(value) && value.some(byte => !Number.isInteger(byte) || byte < -128 || byte > 127)) throw new Error('Unsigned byte passed to Apps Script encoder')
+        return Buffer.from(typeof value === 'string' ? value : Uint8Array.from(value)).toString('base64')
+      },
+      base64Decode: (value: string) => [...Buffer.from(value, 'base64')].map(byte => byte > 127 ? byte - 256 : byte),
+      computeDigest: (_algorithm: string, value: string) => [...createHash('sha256').update(value).digest()].map(byte => byte > 127 ? byte - 256 : byte),
       newBlob: (value: string | number[]) => {
         const buffer = Buffer.from(typeof value === 'string' ? value : Uint8Array.from(value))
         return { getBytes: () => [...buffer], getDataAsString: () => buffer.toString('utf8') }
@@ -79,7 +87,7 @@ function backend() {
   runInNewContext(source, context)
   context.setup()
   const request = (body: Record<string, unknown>) => JSON.parse(context.doPost({ postData: { contents: JSON.stringify({ token: properties.get('QLCT_TOKEN'), ...body }) } }))
-  return { request, get: (action?: string) => JSON.parse(context.doGet({ parameter: { action } })), privateReads: () => privateReads, failPublicWrites: () => { failPublicWrites = true }, properties, sheets, spreadsheet, context, onNextLock: (callback: () => void) => { onLock = callback }, advanceTime: (ms: number) => { now += ms }, setBusy: (v: boolean) => { busy = v }, failWrites: () => { failWrites = true }, failReports: () => { failReports = true }, locks: () => lockCount, held: () => held }
+  return { request, get: (action?: string, id?: string) => JSON.parse(context.doGet({ parameter: { action, id } })), privateReads: () => privateReads, failPublicWrites: () => { failPublicWrites = true }, failMediaWrites: () => { failMediaWrites = true }, failMediaRegistry: (value: boolean) => { failMediaRegistry = value }, properties, sheets, spreadsheet, context, onNextLock: (callback: () => void) => { onLock = callback }, advanceTime: (ms: number) => { now += ms }, setBusy: (v: boolean) => { busy = v }, failWrites: () => { failWrites = true }, failReports: () => { failReports = true }, locks: () => lockCount, held: () => held }
 }
 
 describe('Apps Script backend (mocked Google services; not a live deployment)', () => {
@@ -470,4 +478,138 @@ describe('commerce history and separately published public catalog', () => {
     expect(b.request({ action: 'load' }).data.orders[0].paid).toBe(legacy.orders[0].paid)
     expect(b.request({ action: 'load' }).data.payroll).toEqual(legacy.payroll)
   })
+})
+
+describe('bounded private image library and explicitly published images', () => {
+  // Generated 2x2 red JPEG fixture. Actual JPEG markers/scan rather than spoofed MIME.
+  const jpeg = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAACAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDi6KKK+ZP3E//Z'
+  function fixture() {
+    const b = backend(), data = ensureCommerce(createSeedData())
+    b.properties.set('QLCT_LOGIN', JSON.stringify({ username: 'admin', salt: 'a'.repeat(32), hash: 'b'.repeat(64), version: 'c'.repeat(16) }))
+    const session = b.request({ action: 'exchange' })
+    data.commerce!.publicProfile.name = 'Media demo'
+    return { ...b, data, token: session.token }
+  }
+  it('requires signed sessions, canonical JPEG and strict dimensions, names and byte bounds', () => {
+    const b = fixture()
+    expect(b.request({ action: 'uploadMedia', name: 'photo.jpg', base64: jpeg })).toMatchObject({ ok: false, code: 'UNAUTHORIZED' })
+    for (const base64 of [Buffer.from('<svg onload="evil()"/>').toString('base64'), 'data:image/jpeg;base64,' + jpeg, jpeg + '\n', jpeg.slice(0, -4), Buffer.alloc(165000).toString('base64')]) {
+      expect(b.request({ action: 'uploadMedia', token: b.token, name: 'photo.jpg', base64 }).ok).toBe(false)
+    }
+    const huge = Buffer.from(jpeg, 'base64'), frame = huge.indexOf(Buffer.from([255, 192]))
+    huge.writeUInt16BE(1601, frame + 5)
+    expect(b.request({ action: 'uploadMedia', token: b.token, name: 'photo.jpg', base64: huge.toString('base64') })).toMatchObject({ ok: false, code: 'INVALID_MEDIA' })
+    expect(b.request({ action: 'uploadMedia', token: b.token, name: '\nname', base64: jpeg })).toMatchObject({ ok: false, code: 'INVALID_MEDIA' })
+    expect(b.request({ action: 'listMedia', token: b.token })).toMatchObject({ ok: true, media: [], usage: { count: 0 } })
+    b.onNextLock(() => b.properties.set('QLCT_LOGIN', JSON.stringify({ username: 'admin', salt: 'a'.repeat(32), hash: 'b'.repeat(64), version: 'd'.repeat(16) })))
+    expect(b.request({ action: 'uploadMedia', token: b.token, name: 'photo.jpg', base64: jpeg })).toMatchObject({ ok: false, code: 'SESSION_EXPIRED' })
+  })
+  it('uploads idempotently, preserves business revision, permits private preview but denies anonymous draft access', () => {
+    const b = fixture(), before = b.properties.get('QLCT_COMMIT')
+    const upload = b.request({ action: 'uploadMedia', token: b.token, name: 'photo.jpg', base64: jpeg })
+    expect(upload).toMatchObject({ ok: true, media: { id: createHash('sha256').update(Buffer.from(jpeg, 'base64')).digest('hex'), mime: 'image/jpeg', name: 'photo.jpg' }, usage: { count: 1, maxCount: 80, maxBytes: 12 * 1024 * 1024 } })
+    expect(b.request({ action: 'uploadMedia', token: b.token, name: 'renamed.jpg', base64: jpeg })).toEqual(upload)
+    expect(b.properties.get('QLCT_COMMIT')).toBe(before)
+    expect(b.request({ action: 'getMedia', token: b.token, id: upload.media.id })).toMatchObject({ ok: true, media: { base64: jpeg } })
+    expect(b.get('media', upload.media.id)).toMatchObject({ ok: false, code: 'NOT_FOUND' })
+    expect(b.request({ action: 'getMedia', token: '', id: upload.media.id })).toMatchObject({ ok: false, code: 'UNAUTHORIZED' })
+  })
+  it('exposes only current published image refs and deletion requires both private and public references removed', () => {
+    const b = fixture()
+    const upload = b.request({ action: 'uploadMedia', token: b.token, name: 'photo.jpg', base64: jpeg }), id = upload.media.id
+    b.data.commerce!.publicProfile.heroImage = 'media:' + id
+    b.request({ action: 'save', expectedRevision: 0, data: b.data })
+    expect(b.request({ action: 'deleteMedia', token: b.token, id })).toMatchObject({ ok: false, code: 'MEDIA_IN_USE' })
+    expect(b.request({ action: 'publishCatalog', token: b.token, expectedRevision: 1 })).toMatchObject({ ok: true })
+    const reads = b.privateReads()
+    expect(b.get('media', id)).toEqual({ ok: true, media: { id, mime: 'image/jpeg', bytes: Buffer.from(jpeg, 'base64').length, base64: jpeg } })
+    expect(b.privateReads()).toBe(reads)
+    b.data.commerce!.publicProfile.heroImage = ''
+    b.request({ action: 'save', expectedRevision: 1, data: b.data })
+    expect(b.request({ action: 'deleteMedia', token: b.token, id })).toMatchObject({ ok: false, code: 'MEDIA_IN_USE' })
+    b.request({ action: 'publishCatalog', token: b.token, expectedRevision: 2 })
+    expect(b.get('media', id)).toMatchObject({ ok: false, code: 'NOT_FOUND' })
+    expect(b.request({ action: 'deleteMedia', token: b.token, id })).toMatchObject({ ok: true, usage: { count: 0 } })
+    expect(b.request({ action: 'getMedia', token: b.token, id })).toMatchObject({ ok: false, code: 'NOT_FOUND' })
+  })
+  it('withdraws disabled section images from public access on republish while keeping private previews', () => {
+    const b = fixture(), upload = b.request({ action: 'uploadMedia', token: b.token, name: 'about.jpg', base64: jpeg }), id = upload.media.id
+    const settings = getWebsiteSettings(b.data.commerce!.publicProfile)
+    b.data.commerce!.publicProfile.site = settings
+    settings.aboutImage = { src: 'media:' + id, alt: 'Private about image' }
+    settings.aboutText = 'About content'
+    b.request({ action: 'save', expectedRevision: 0, data: b.data })
+    b.request({ action: 'publishCatalog', token: b.token, expectedRevision: 1 })
+    expect(b.get('media', id).ok).toBe(true)
+    settings.sections.about = false
+    b.request({ action: 'save', expectedRevision: 1, data: b.data })
+    expect(b.get('media', id).ok).toBe(true)
+    expect(b.request({ action: 'publishCatalog', token: b.token, expectedRevision: 2 }).ok).toBe(true)
+    const reads = b.privateReads()
+    expect(b.get('media', id)).toMatchObject({ ok: false, code: 'NOT_FOUND' })
+    expect(b.privateReads()).toBe(reads)
+    expect(b.get('catalog').catalog.profile.site.aboutImage).toEqual({ src: '', alt: '' })
+    expect(b.request({ action: 'getMedia', token: b.token, id }).ok).toBe(true)
+    expect(b.request({ action: 'deleteMedia', token: b.token, id })).toMatchObject({ ok: false, code: 'MEDIA_IN_USE' })
+  })
+  it('does not expose interrupted uploads; retry recovers safely and missing assets cannot replace public catalog', () => {
+    const b = fixture()
+    b.failMediaRegistry(true)
+    expect(b.request({ action: 'uploadMedia', token: b.token, name: 'photo.jpg', base64: jpeg })).toMatchObject({ ok: false, code: 'INTERNAL' })
+    expect(b.request({ action: 'listMedia', token: b.token }).media).toEqual([])
+    b.failMediaRegistry(false)
+    expect(b.request({ action: 'uploadMedia', token: b.token, name: 'photo.jpg', base64: jpeg })).toMatchObject({ ok: true, usage: { count: 1 } })
+    b.request({ action: 'save', expectedRevision: 0, data: b.data })
+    b.request({ action: 'publishCatalog', token: b.token, expectedRevision: 1 })
+    const published = b.get('catalog')
+    b.data.commerce!.publicProfile.heroImage = 'media:' + 'f'.repeat(64)
+    b.request({ action: 'save', expectedRevision: 1, data: b.data })
+    expect(b.request({ action: 'publishCatalog', token: b.token, expectedRevision: 2 })).toMatchObject({ ok: false, code: 'NOT_FOUND' })
+    expect(b.get('catalog')).toEqual(published)
+  })
+  it('enforces the 80-image quota while allowing an idempotent retry at quota', () => {
+    const b = fixture(), original = Buffer.from(jpeg, 'base64')
+    const variant = (index: number) => Buffer.concat([original.subarray(0, 2), Buffer.from([255, 254, 0, 4, index, 0]), original.subarray(2)]).toString('base64')
+    for (let index = 0; index < 80; index++) expect(b.request({ action: 'uploadMedia', token: b.token, name: 'image.jpg', base64: variant(index) })).toMatchObject({ ok: true, usage: { count: index + 1 } })
+    expect(b.request({ action: 'uploadMedia', token: b.token, name: 'image.jpg', base64: variant(80) })).toMatchObject({ ok: false, code: 'MEDIA_QUOTA' })
+    expect(b.request({ action: 'uploadMedia', token: b.token, name: 'retry.jpg', base64: variant(0) })).toMatchObject({ ok: true, usage: { count: 80 } })
+    const list = b.request({ action: 'listMedia', token: b.token })
+    expect(list.media).toHaveLength(80)
+    expect(list.usage.bytes).toBe(80 * (original.length + 6))
+    expect(JSON.stringify(list)).not.toMatch(/base64|"row"|"chunks"/)
+  })
+  it('stores multi-chunk images, detects tampering and never overwrites committed media on upload failure', () => {
+    const b = fixture(), original = Buffer.from(jpeg, 'base64')
+    const comment = Buffer.concat([Buffer.from([255, 254, 255, 255]), Buffer.alloc(65533, 42)])
+    const large = Buffer.concat([original.subarray(0, 2), comment, original.subarray(2)]).toString('base64')
+    const uploaded = b.request({ action: 'uploadMedia', token: b.token, name: 'large.jpg', base64: large })
+    expect(uploaded.ok).toBe(true)
+    expect(b.request({ action: 'getMedia', token: b.token, id: uploaded.media.id }).media.base64).toBe(large)
+    b.failMediaWrites()
+    expect(b.request({ action: 'uploadMedia', token: b.token, name: 'other.jpg', base64: jpeg })).toMatchObject({ ok: false, code: 'INTERNAL' })
+    expect(b.request({ action: 'listMedia', token: b.token }).media).toHaveLength(1)
+    expect(b.request({ action: 'getMedia', token: b.token, id: uploaded.media.id }).media.base64).toBe(large)
+    b.sheets.get(`QLCT_${b.properties.get('QLCT_NAMESPACE')}_MEDIA`)!.getRange(2, 1).setValue('b64:' + jpeg)
+    expect(b.request({ action: 'getMedia', token: b.token, id: uploaded.media.id }).ok).toBe(false)
+  })
+  it('enforces total 12 MiB storage before the 80-asset count limit', () => {
+    const b = fixture(), original = Buffer.from(jpeg, 'base64')
+    const maxSize = 160 * 1024
+    const segments: Buffer[] = []
+    let padding = maxSize - original.length
+    while (padding) {
+      const size = Math.min(65537, padding)
+      const segment = Buffer.alloc(size, 42)
+      segment[0] = 255; segment[1] = 254; segment.writeUInt16BE(size - 2, 2)
+      segments.push(segment); padding -= size
+    }
+    const image = Buffer.concat([original.subarray(0, 2), ...segments, original.subarray(2)])
+    for (let index = 0; index < 76; index++) {
+      image[6] = index
+      expect(b.request({ action: 'uploadMedia', token: b.token, name: 'photo.jpg', base64: image.toString('base64') })).toMatchObject({ ok: true, usage: { count: index + 1, bytes: (index + 1) * maxSize } })
+    }
+    image[6] = 76
+    expect(b.request({ action: 'uploadMedia', token: b.token, name: 'photo.jpg', base64: image.toString('base64') })).toMatchObject({ ok: false, code: 'MEDIA_QUOTA' })
+    expect(b.request({ action: 'listMedia', token: b.token }).usage).toEqual({ count: 76, bytes: 76 * maxSize, maxCount: 80, maxBytes: 12 * 1024 * 1024 })
+  }, 20000)
 })

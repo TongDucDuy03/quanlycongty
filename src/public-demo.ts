@@ -1,13 +1,29 @@
-import type { PublicCatalog } from './commerce'
+import { getWebsiteSettings, type PublicCatalog, type PublicProfile } from './commerce'
+
+const demoProfile: PublicProfile = {
+  name: 'Cơ khí An Phát', tagline: 'Gia công theo bản vẽ. Đồng hành cùng sản xuất.',
+  description: 'Không gian giới thiệu mẫu dành cho doanh nghiệp cơ khí: trình bày năng lực gia công, danh mục chi tiết và cách khách hàng liên hệ báo giá. Nội dung này là minh họa để trải nghiệm phần mềm.',
+  address: '', phone: '', email: '', website: '', heroImage: '',
+  capabilities: ['Tiện & phay CNC', 'Gia công theo bản vẽ', 'Kết cấu & đồ gá', 'Sản xuất theo đơn'],
+}
 
 /** Fictional presentation content only; never derived from private business data. */
 export const publicDemo: PublicCatalog = {
   version: 1, publishedAt: '2026-10-22T00:00:00.000Z',
   profile: {
-    name: 'Cơ khí An Phát', tagline: 'Gia công theo bản vẽ. Đồng hành cùng sản xuất.',
-    description: 'Không gian giới thiệu mẫu dành cho doanh nghiệp cơ khí: trình bày năng lực gia công, danh mục chi tiết và cách khách hàng liên hệ báo giá. Nội dung này là minh họa để trải nghiệm phần mềm.',
-    address: '', phone: '', email: '', website: '', heroImage: '',
-    capabilities: ['Tiện & phay CNC', 'Gia công theo bản vẽ', 'Kết cấu & đồ gá', 'Sản xuất theo đơn'],
+    ...demoProfile,
+    site: {
+      ...getWebsiteSettings(demoProfile),
+      brandColor: '#146d5b', heroEyebrow: 'GIA CÔNG CƠ KHÍ THEO YÊU CẦU',
+      aboutTitle: 'Một không gian để giới thiệu năng lực thật.',
+      aboutText: 'Đây là phần giới thiệu mẫu. Doanh nghiệp có thể thay bằng câu chuyện về xưởng, đội ngũ, cách tiếp nhận bản vẽ và phương pháp kiểm tra sản phẩm.\n\nĐăng ảnh xưởng hoặc máy móc của bạn, mô tả những hạng mục thực sự có thể thực hiện để khách hàng hiểu rõ trước khi trao đổi.',
+      galleryTitle: 'Không gian xưởng & công việc',
+      gallery: [
+        { id: 'demo-workshop', title: 'Không gian gia công', description: 'Vị trí minh họa để chủ xưởng đăng ảnh máy móc và khu vực sản xuất thực tế.', image: { src: '', alt: '' } },
+        { id: 'demo-inspection', title: 'Kiểm tra chi tiết', description: 'Đăng ảnh công đoạn đo kiểm và ghi rõ những tiêu chí doanh nghiệp thực hiện.', image: { src: '', alt: '' } },
+        { id: 'demo-finished', title: 'Sản phẩm hoàn thiện', description: 'Giới thiệu công việc tiêu biểu được phép công khai, không sử dụng bản vẽ mật của khách.', image: { src: '', alt: '' } },
+      ],
+    },
   },
   products: [
     { id: 'demo-shaft', name: 'Trục truyền động', category: 'Tiện CNC', summary: 'Chi tiết tròn xoay gia công theo bản vẽ và yêu cầu lắp ghép.', specification: 'Đường kính, chiều dài, dung sai và xử lý bề mặt được xác nhận khi báo giá.', material: 'Thép / inox theo yêu cầu', unit: 'Chi tiết', imageUrl: '', priceLabel: 'Báo giá theo bản vẽ', featured: true },

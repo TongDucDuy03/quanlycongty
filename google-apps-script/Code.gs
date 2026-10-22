@@ -105,6 +105,7 @@ var QLCTValidation = (() => {
   function safePublicUrl(value, media = false) {
     if (!text(value, 1e3)) return false;
     if (value === "") return true;
+    if (media && /^media:[a-f0-9]{64}$/.test(value)) return true;
     if (media && /^(?:\.?\/)?(?:assets|images)\/[A-Za-z0-9_./-]+$/.test(value) && !value.includes("..")) return true;
     if (!/^https:\/\/[^\s/?#@]+(?:[/?#][^\s]*)?$/.test(value)) return false;
     return !/[<>"'\\]/.test(value);
@@ -113,10 +114,21 @@ var QLCTValidation = (() => {
     return obj(value) && companyKeys.every((key) => text(value[key])) && safePublicUrl(value.website);
   }
   function validProfile(value, published = false) {
-    return obj(value) && profileKeys.every((key) => text(value[key], key === "description" ? 4e3 : 1e3)) && (!published || required2(value.name)) && safePublicUrl(value.website) && safePublicUrl(value.heroImage, true) && Array.isArray(value.capabilities) && value.capabilities.length <= 20 && value.capabilities.every((item) => required2(item, 300));
+    return obj(value) && profileKeys.every((key) => text(value[key], key === "description" ? 4e3 : 1e3)) && (!published || required2(value.name)) && safePublicUrl(value.website) && safePublicUrl(value.heroImage, true) && Array.isArray(value.capabilities) && value.capabilities.length <= 20 && value.capabilities.every((item) => required2(item, 300)) && (value.site === void 0 || validWebsite(value.site));
   }
   function validProduct(value, publicOnly = false) {
-    return obj(value) && productKeys.every((key) => text(value[key], key === "specification" ? 3e3 : 1e3)) && required2(value.id) && required2(value.name) && safePublicUrl(value.imageUrl, true) && typeof value.featured === "boolean" && (publicOnly || typeof value.published === "boolean");
+    return obj(value) && productKeys.every((key) => text(value[key], key === "specification" ? 3e3 : 1e3)) && required2(value.id) && required2(value.name) && safePublicUrl(value.imageUrl, true) && typeof value.featured === "boolean" && (publicOnly || typeof value.published === "boolean") && (value.images === void 0 || Array.isArray(value.images) && value.images.length <= 6 && value.images.every(validImage));
+  }
+  var onlyKeys = (item, allowed) => Object.keys(item).every((key) => allowed.includes(key));
+  function validImage(value) {
+    return obj(value) && onlyKeys(value, ["src", "alt"]) && safePublicUrl(value.src, true) && text(value.alt, 300);
+  }
+  function validWebsite(value) {
+    if (!obj(value) || !onlyKeys(value, ["logo", "brandColor", "heroEyebrow", "heroImageAlt", "aboutTitle", "aboutText", "aboutImage", "galleryTitle", "gallery", "businessHours", "zaloUrl", "mapUrl", "sections"])) return false;
+    if (!validImage(value.logo) || !validImage(value.aboutImage) || typeof value.brandColor !== "string" || !/^#[a-fA-F0-9]{6}$/.test(value.brandColor)) return false;
+    if (!["heroEyebrow", "heroImageAlt", "aboutTitle", "galleryTitle", "businessHours"].every((key) => text(value[key], 300)) || !text(value.aboutText, 6e3) || !safePublicUrl(value.zaloUrl) || !safePublicUrl(value.mapUrl)) return false;
+    if (!Array.isArray(value.gallery) || value.gallery.length > 12 || !value.gallery.every((item) => obj(item) && onlyKeys(item, ["id", "title", "description", "image"]) && required2(item.id) && text(item.title, 200) && text(item.description, 1e3) && validImage(item.image)) || new Set(value.gallery.map((item) => item.id)).size !== value.gallery.length) return false;
+    return obj(value.sections) && onlyKeys(value.sections, ["about", "capabilities", "products", "gallery", "process", "contact"]) && ["about", "capabilities", "products", "gallery", "process", "contact"].every((key) => typeof value.sections[key] === "boolean");
   }
   function validDocument(value) {
     if (!obj(value) || !required2(value.id) || !required2(value.number) || !kinds.includes(value.kind) || !required2(value.orderId) || !date(value.date) || !timestamp(value.createdAt)) return false;
@@ -178,14 +190,42 @@ var QLCTValidation = (() => {
   function buildPublicCatalog(data, publishedAt = (/* @__PURE__ */ new Date()).toISOString()) {
     const draft = getCommerce(data), source = draft.publicProfile;
     const profile = { name: source.name, tagline: source.tagline, description: source.description, address: source.address, phone: source.phone, email: source.email, website: source.website, heroImage: source.heroImage, capabilities: source.capabilities.map((item) => item) };
-    const products = draft.products.filter((item) => item.published).map((item) => ({ id: item.id, name: item.name, category: item.category, summary: item.summary, specification: item.specification, material: item.material, unit: item.unit, imageUrl: item.imageUrl, priceLabel: item.priceLabel, featured: item.featured }));
+    const image = (item) => ({ src: item.src, alt: item.alt });
+    if (source.site) {
+      const site = source.site;
+      profile.site = { logo: image(site.logo), brandColor: site.brandColor, heroEyebrow: site.heroEyebrow, heroImageAlt: site.heroImageAlt, aboutTitle: site.aboutTitle, aboutText: site.aboutText, aboutImage: image(site.aboutImage), galleryTitle: site.galleryTitle, gallery: site.gallery.map((item) => ({ id: item.id, title: item.title, description: item.description, image: image(item.image) })), businessHours: site.businessHours, zaloUrl: site.zaloUrl, mapUrl: site.mapUrl, sections: { about: site.sections.about, capabilities: site.sections.capabilities, products: site.sections.products, gallery: site.sections.gallery, process: site.sections.process, contact: site.sections.contact } };
+    }
+    const products = draft.products.filter((item) => item.published).map((item) => ({ id: item.id, name: item.name, category: item.category, summary: item.summary, specification: item.specification, material: item.material, unit: item.unit, imageUrl: item.imageUrl, priceLabel: item.priceLabel, featured: item.featured, ...item.images ? { images: item.images.map(image) } : {} }));
+    if (profile.site) {
+      const site = profile.site;
+      if (!site.sections.about) {
+        site.aboutTitle = "";
+        site.aboutText = "";
+        site.aboutImage = { src: "", alt: "" };
+      }
+      if (!site.sections.gallery) {
+        site.galleryTitle = "";
+        site.gallery = [];
+      }
+      if (!site.sections.capabilities) profile.capabilities = [];
+      if (!site.sections.products) products.length = 0;
+      if (!site.sections.contact) {
+        profile.address = "";
+        profile.phone = "";
+        profile.email = "";
+        profile.website = "";
+        site.businessHours = "";
+        site.zaloUrl = "";
+        site.mapUrl = "";
+      }
+    }
     const result = { version: 1, publishedAt, profile, products };
     if (!validatePublicCatalog(result)) throw new Error("Nhập tên doanh nghiệp và kiểm tra nội dung công khai trước khi xuất bản.");
     return result;
   }
   function validatePublicCatalog(value) {
     const keys = (item, allowed) => Object.keys(item).every((key) => allowed.includes(key));
-    return obj(value) && keys(value, ["version", "publishedAt", "profile", "products"]) && value.version === 1 && timestamp(value.publishedAt) && validProfile(value.profile, true) && keys(value.profile, [...profileKeys, "capabilities"]) && Array.isArray(value.products) && value.products.length <= 100 && value.products.every((product) => validProduct(product, true) && keys(product, [...productKeys, "featured"])) && new Set(value.products.map((product) => product.id)).size === value.products.length;
+    return obj(value) && keys(value, ["version", "publishedAt", "profile", "products"]) && value.version === 1 && timestamp(value.publishedAt) && validProfile(value.profile, true) && keys(value.profile, [...profileKeys, "capabilities", "site"]) && Array.isArray(value.products) && value.products.length <= 100 && value.products.every((product) => validProduct(product, true) && keys(product, [...productKeys, "featured", "images"])) && new Set(value.products.map((product) => product.id)).size === value.products.length;
   }
 
   // src/domain.ts
@@ -242,14 +282,15 @@ var QLCTCrypto=(()=>{var C=Object.defineProperty;var N=Object.getOwnPropertyDesc
  * login uses username/password. configureLogin creates the account ONCE using
  * the installation token. exchange migrates an existing trusted browser.
  * Never put the token in a URL, source code, build environment or repository.
- * No GET data API / JSONP. Follow ContentService's redirect; do not use no-cors.
+ * GET returns only explicitly published catalog/images; no private GET or JSONP.
+ * Follow ContentService's redirect; do not use no-cors.
  * Manual snapshot sync, 2 MiB UTF-8 JSON maximum; no real-time merge or RBAC.
  * Both reads and writes hold the script lock. Two chunk buffers preserve the
  * previous commit if writing fails. One ScriptProperty commits the new manifest
  * LAST, after flushing and checking persisted contents. Projection tabs are
  * reports only: editing them does NOT update the app.
  */
-var QLCT = { prefix: 'QLCT_', maxBytes: 2 * 1024 * 1024, publicMaxBytes: 256 * 1024, chunkSize: 40000 };
+var QLCT = { prefix: 'QLCT_', maxBytes: 2 * 1024 * 1024, publicMaxBytes: 256 * 1024, chunkSize: 40000, mediaMaxBytes: 160 * 1024, mediaMaxCount: 80, mediaTotalBytes: 12 * 1024 * 1024 };
 
 /** Run manually in the bound spreadsheet once. Re-running preserves data/key. */
 function setup() {
@@ -275,14 +316,19 @@ function setup() {
 }
 
 function doGet(e) {
-  if (!e || !e.parameter || e.parameter.action !== 'catalog') return json_({ ok: false, code: 'UNAUTHORIZED', message: 'Use the application to connect.' });
+  if (!e || !e.parameter || ['catalog', 'media'].indexOf(e.parameter.action) < 0) return json_({ ok: false, code: 'UNAUTHORIZED', message: 'Use the application to connect.' });
   var lock;
   try {
     var config = config_();
     lock = LockService.getScriptLock();
     if (!lock.tryLock(10000)) fail_('BUSY', 'Another operation is running. Try again shortly.');
     // Public reads NEVER open the private snapshot, even for validation/fallback.
-    var catalog = readPublic_(SpreadsheetApp.openById(config.spreadsheetId), config);
+    var ss = SpreadsheetApp.openById(config.spreadsheetId);
+    var catalog = readPublic_(ss, config);
+    if (e.parameter.action === 'media') {
+      if (!mediaId_(e.parameter.id) || mediaRefs_(catalog).indexOf(e.parameter.id) < 0) fail_('NOT_FOUND', 'Image is not published.');
+      return json_({ ok: true, media: readMedia_(ss, config, e.parameter.id) });
+    }
     return json_({ ok: true, catalog: catalog });
   } catch (error) { return errorResponse_(error); }
   finally { if (lock && lock.hasLock()) lock.releaseLock(); }
@@ -297,6 +343,15 @@ function doPost(e) {
     var request;
     try { request = JSON.parse(raw); } catch (_) { fail_('INVALID_DATA', 'Invalid JSON request.'); }
     if (!object_(request)) fail_('INVALID_DATA', 'Invalid request.');
+    if (['uploadMedia', 'listMedia', 'getMedia', 'deleteMedia'].indexOf(request.action) !== -1) {
+      authorize_(request.token, config, true);
+      if (raw.length > Math.ceil(QLCT.mediaMaxBytes / 3) * 4 + 2000) fail_('LIMIT', 'Image upload exceeds 160 KiB.');
+      lock = LockService.getScriptLock();
+      if (!lock.tryLock(10000)) fail_('BUSY', 'Another operation is running. Try again shortly.');
+      config = config_();
+      authorize_(request.token, config, true);
+      return json_(mediaRequest_(request, SpreadsheetApp.openById(config.spreadsheetId), config));
+    }
     if (request.action === 'publishCatalog') {
       if (raw.length > 2000) fail_('LIMIT', 'Publication request is too large.');
       authorize_(request.token, config, true);
@@ -312,6 +367,7 @@ function doPost(e) {
       var publicCatalog;
       try { publicCatalog = QLCTValidation.buildPublicCatalog(publicSource.data, new Date().toISOString()); }
       catch (_) { fail_('INVALID_DATA', 'Check the public profile and product catalog before publishing.'); }
+      mediaRefs_(publicCatalog).forEach(function (id) { readMedia_(publicSourceSheet, config, id); });
       writePublic_(publicSourceSheet, config, publicCatalog);
       return json_({ ok: true, publishedAt: publicCatalog.publishedAt });
     }
@@ -402,6 +458,128 @@ function writePublic_(ss, config, catalog) {
   var manifest = { slot: slot, chunks: chunks.length, checksum: checksum_(serialized) };
   if (readBuffer_(ss, config, manifest) !== serialized) fail_('INTERNAL', 'Published catalog verification failed.');
   PropertiesService.getScriptProperties().setProperty('QLCT_PUBLIC_COMMIT', JSON.stringify(manifest));
+}
+
+function mediaId_(id) { return typeof id === 'string' && /^[a-f0-9]{64}$/.test(id); }
+function mediaRefs_(catalog) {
+  var refs = [];
+  function add(src) { if (typeof src === 'string' && /^media:[a-f0-9]{64}$/.test(src) && refs.indexOf(src.slice(6)) < 0) refs.push(src.slice(6)); }
+  if (!catalog) return refs;
+  var profile = catalog.profile || catalog.publicProfile;
+  if (profile) {
+    add(profile.heroImage);
+    if (profile.site) {
+      add(profile.site.logo.src); add(profile.site.aboutImage.src);
+      profile.site.gallery.forEach(function (item) { add(item.image.src); });
+    }
+  }
+  (catalog.products || []).forEach(function (item) { add(item.imageUrl); (item.images || []).forEach(function (image) { add(image.src); }); });
+  return refs;
+}
+function mediaRegistry_(ss, config) {
+  var raw = PropertiesService.getScriptProperties().getProperty('QLCT_MEDIA_COMMIT');
+  if (!raw) return { assets: [], slot: null };
+  var manifest, assets;
+  try { manifest = JSON.parse(raw); } catch (_) { fail_('CONFIG', 'Image library index is invalid.'); }
+  if (!object_(manifest) || ['MA', 'MB'].indexOf(manifest.slot) < 0 || !Number.isInteger(manifest.chunks) || manifest.chunks < 1 || manifest.chunks > 2 || typeof manifest.checksum !== 'string') fail_('CONFIG', 'Image library index is invalid.');
+  try { assets = JSON.parse(readBuffer_(ss, config, manifest)); } catch (_) { fail_('CONFIG', 'Image library index is invalid.'); }
+  var ids = {}, rows = {}, total = 0;
+  if (!Array.isArray(assets) || assets.length > QLCT.mediaMaxCount) fail_('CONFIG', 'Image library index is invalid.');
+  assets.forEach(function (asset) {
+    if (!object_(asset) || !mediaId_(asset.id) || ids[asset.id] || !Number.isInteger(asset.row) || asset.row < 2 || asset.row > QLCT.mediaMaxCount + 2 || rows[asset.row] || asset.mime !== 'image/jpeg' || !Number.isInteger(asset.bytes) || asset.bytes < 4 || asset.bytes > QLCT.mediaMaxBytes || typeof asset.name !== 'string' || asset.name.length < 1 || asset.name.length > 120 || typeof asset.createdAt !== 'string' || !Number.isFinite(Date.parse(asset.createdAt)) || !Number.isInteger(asset.chunks) || asset.chunks < 1 || asset.chunks > 6) fail_('CONFIG', 'Image library index is invalid.');
+    ids[asset.id] = true; rows[asset.row] = true; total += asset.bytes;
+  });
+  if (total > QLCT.mediaTotalBytes) fail_('CONFIG', 'Image library quota is invalid.');
+  return { assets: assets, slot: manifest.slot };
+}
+function commitMediaRegistry_(ss, config, assets, oldSlot) {
+  var serialized = JSON.stringify(assets), encoded = Utilities.base64Encode(serialized, Utilities.Charset.UTF_8), chunks = [];
+  for (var offset = 0; offset < encoded.length; offset += QLCT.chunkSize) chunks.push(['b64:' + encoded.slice(offset, offset + QLCT.chunkSize)]);
+  var slot = oldSlot === 'MA' ? 'MB' : 'MA';
+  var sheet = buffer_(ss, config, slot, true);
+  sheet.getRange(2, 1, chunks.length, 1).setValues(chunks);
+  SpreadsheetApp.flush();
+  var manifest = { slot: slot, chunks: chunks.length, checksum: checksum_(serialized) };
+  if (readBuffer_(ss, config, manifest) !== serialized) fail_('INTERNAL', 'Image library verification failed.');
+  PropertiesService.getScriptProperties().setProperty('QLCT_MEDIA_COMMIT', JSON.stringify(manifest));
+}
+function mediaMetadata_(asset) { return { id: asset.id, name: asset.name, mime: asset.mime, bytes: asset.bytes, createdAt: asset.createdAt }; }
+function mediaUsage_(assets) { return { count: assets.length, bytes: assets.reduce(function (total, item) { return total + item.bytes; }, 0), maxCount: QLCT.mediaMaxCount, maxBytes: QLCT.mediaTotalBytes }; }
+function jpegBytes_(encoded) {
+  if (typeof encoded !== 'string' || encoded.length < 8 || encoded.length > Math.ceil(QLCT.mediaMaxBytes / 3) * 4 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded)) fail_('INVALID_MEDIA', 'Upload a normalized JPEG image no larger than 160 KiB.');
+  var bytes, signedBytes;
+  try { signedBytes = Utilities.base64Decode(encoded); bytes = signedBytes.map(function (value) { return value & 255; }); } catch (_) { fail_('INVALID_MEDIA', 'Image encoding is invalid.'); }
+  // Preserve Google's signed Byte[] for its encoder; unsigned values are only
+  // used by the JavaScript parser/hash and must not cross the Java byte boundary.
+  if (bytes.length > QLCT.mediaMaxBytes || Utilities.base64Encode(signedBytes) !== encoded || bytes[0] !== 255 || bytes[1] !== 216 || bytes[bytes.length - 2] !== 255 || bytes[bytes.length - 1] !== 217) fail_('INVALID_MEDIA', 'Image must be a JPEG no larger than 160 KiB.');
+  // Read JPEG segment lengths and SOF dimensions, never trust client metadata.
+  var offset = 2, width = 0, height = 0, scan = false;
+  while (offset < bytes.length - 2) {
+    if (bytes[offset++] !== 255) fail_('INVALID_MEDIA', 'Invalid JPEG marker.');
+    while (bytes[offset] === 255) offset++;
+    var marker = bytes[offset++];
+    if (marker === 0 || marker === 216 || marker === 217 || marker >= 208 && marker <= 215 || offset + 1 >= bytes.length) fail_('INVALID_MEDIA', 'Invalid JPEG segment.');
+    var length = bytes[offset] * 256 + bytes[offset + 1];
+    if (length < 2 || offset + length > bytes.length - 2) fail_('INVALID_MEDIA', 'Invalid JPEG segment length.');
+    if (marker === 192 || marker === 194) {
+      if (length < 8 || bytes[offset + 2] !== 8 || [1, 3].indexOf(bytes[offset + 7]) < 0 || length !== 8 + bytes[offset + 7] * 3 || width) fail_('INVALID_MEDIA', 'Unsupported JPEG frame.');
+      height = bytes[offset + 3] * 256 + bytes[offset + 4]; width = bytes[offset + 5] * 256 + bytes[offset + 6];
+      if (!width || !height || width > 1600 || height > 1600) fail_('INVALID_MEDIA', 'Resize the image to at most 1600 pixels per side.');
+    }
+    if (marker === 218) {
+      if (!width || !height || length < 8 || bytes[offset + 2] < 1 || bytes[offset + 2] > 3 || length !== 6 + bytes[offset + 2] * 2 || offset + length >= bytes.length - 2) fail_('INVALID_MEDIA', 'Invalid JPEG scan.');
+      scan = true; break;
+    }
+    offset += length;
+  }
+  if (!scan || !width || !height) fail_('INVALID_MEDIA', 'JPEG dimensions or image scan are missing.');
+  return bytes;
+}
+function readMedia_(ss, config, id, registry) {
+  var assets = (registry || mediaRegistry_(ss, config)).assets;
+  var asset = assets.filter(function (item) { return item.id === id; })[0];
+  if (!asset) fail_('NOT_FOUND', 'Image was not found.');
+  var row = buffer_(ss, config, 'MEDIA', false).getRange(asset.row, 1, 1, asset.chunks).getValues()[0];
+  var encoded = row.map(function (value) { if (typeof value !== 'string' || !/^b64:[A-Za-z0-9+/=]+$/.test(value)) fail_('CONFIG', 'Stored image is invalid.'); return value.slice(4); }).join('');
+  var bytes = jpegBytes_(encoded);
+  if (bytes.length !== asset.bytes || authHex_(QLCTCrypto.sha256(new Uint8Array(bytes))) !== asset.id) fail_('CONFIG', 'Stored image checksum does not match.');
+  return { id: asset.id, mime: asset.mime, bytes: asset.bytes, base64: encoded };
+}
+function mediaRequest_(request, ss, config) {
+  var registry = mediaRegistry_(ss, config), assets = registry.assets;
+  if (request.action === 'listMedia') return { ok: true, media: assets.map(mediaMetadata_), usage: mediaUsage_(assets) };
+  if (request.action === 'uploadMedia') {
+    if (typeof request.name !== 'string' || !request.name.trim() || request.name.trim().length > 120 || /[\u0000-\u001f\u007f]/.test(request.name)) fail_('INVALID_MEDIA', 'Image name must be 1-120 characters.');
+    var bytes = jpegBytes_(request.base64), id = authHex_(QLCTCrypto.sha256(new Uint8Array(bytes)));
+    var existing = assets.filter(function (item) { return item.id === id; })[0];
+    if (existing) { readMedia_(ss, config, id, registry); return { ok: true, media: mediaMetadata_(existing), usage: mediaUsage_(assets) }; }
+    var usage = mediaUsage_(assets);
+    if (usage.count >= QLCT.mediaMaxCount || usage.bytes + bytes.length > QLCT.mediaTotalBytes) fail_('MEDIA_QUOTA', 'Image library is full. Remove unused images before uploading.');
+    var nextRow = 2;
+    while (assets.some(function (item) { return item.row === nextRow; })) nextRow++;
+    var chunks = [];
+    for (var offset = 0; offset < request.base64.length; offset += QLCT.chunkSize) chunks.push('b64:' + request.base64.slice(offset, offset + QLCT.chunkSize));
+    var sheet = buffer_(ss, config, 'MEDIA', true);
+    if (sheet.getMaxRows() < nextRow) sheet.insertRowsAfter(sheet.getMaxRows(), nextRow - sheet.getMaxRows());
+    if (sheet.getMaxColumns() < chunks.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), chunks.length - sheet.getMaxColumns());
+    sheet.getRange(nextRow, 1, 1, chunks.length).setValues([chunks]);
+    SpreadsheetApp.flush();
+    var asset = { id: id, name: request.name.trim(), mime: 'image/jpeg', bytes: bytes.length, createdAt: new Date().toISOString(), row: nextRow, chunks: chunks.length };
+    var nextAssets = assets.concat([asset]);
+    readMedia_(ss, config, id, { assets: nextAssets });
+    commitMediaRegistry_(ss, config, nextAssets, registry.slot);
+    return { ok: true, media: mediaMetadata_(asset), usage: mediaUsage_(nextAssets) };
+  }
+  if (!mediaId_(request.id)) fail_('NOT_FOUND', 'Image was not found.');
+  if (request.action === 'getMedia') return { ok: true, media: readMedia_(ss, config, request.id, registry) };
+  var found = assets.filter(function (item) { return item.id === request.id; })[0];
+  if (!found) return { ok: true, usage: mediaUsage_(assets) };
+  var privateSnapshot = readCommitted_(ss, config);
+  if (mediaRefs_(privateSnapshot.data && privateSnapshot.data.commerce).indexOf(request.id) >= 0 || mediaRefs_(readPublic_(ss, config)).indexOf(request.id) >= 0) fail_('MEDIA_IN_USE', 'Remove this image from the saved draft and published website before deleting it.');
+  var remaining = assets.filter(function (item) { return item.id !== request.id; });
+  // Commit deletion first. Stale chunk cells are inaccessible and reused on upload.
+  commitMediaRegistry_(ss, config, remaining, registry.slot);
+  return { ok: true, usage: mediaUsage_(remaining) };
 }
 
 function config_() {
@@ -546,7 +724,7 @@ function authorize_(token, config, sessionOnly) {
 }
 function json_(value) { return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON); }
 function errorResponse_(error) {
-  var codes = ['UNAUTHORIZED', 'CONFLICT', 'INVALID_DATA', 'LIMIT', 'BUSY', 'CONFIG', 'INTERNAL', 'AUTH_FAILED', 'RATE_LIMITED', 'LOGIN_NOT_CONFIGURED', 'LOGIN_ALREADY_CONFIGURED', 'SESSION_EXPIRED', 'CURRENT_PASSWORD_INVALID', 'IMMUTABLE_HISTORY'];
+  var codes = ['UNAUTHORIZED', 'CONFLICT', 'INVALID_DATA', 'LIMIT', 'BUSY', 'CONFIG', 'INTERNAL', 'AUTH_FAILED', 'RATE_LIMITED', 'LOGIN_NOT_CONFIGURED', 'LOGIN_ALREADY_CONFIGURED', 'SESSION_EXPIRED', 'CURRENT_PASSWORD_INVALID', 'IMMUTABLE_HISTORY', 'INVALID_MEDIA', 'MEDIA_QUOTA', 'MEDIA_IN_USE', 'NOT_FOUND'];
   var known = error && codes.indexOf(error.code) !== -1;
   return json_({ ok: false, code: known ? error.code : 'INTERNAL', message: known ? error.message : 'Google Sheets operation failed. Check the deployment and try loading before saving again.' });
 }

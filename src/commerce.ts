@@ -9,10 +9,20 @@ export interface CompanyProfile {
 export interface PublicProfile {
   name: string; tagline: string; description: string; address: string; phone: string; email: string
   website: string; heroImage: string; capabilities: string[]
+  site?: WebsiteSettings
+}
+export interface WebsiteImage { src: string; alt: string }
+export interface ShowcaseItem { id: string; title: string; description: string; image: WebsiteImage }
+export interface WebsiteSettings {
+  logo: WebsiteImage; brandColor: string; heroEyebrow: string; heroImageAlt: string
+  aboutTitle: string; aboutText: string; aboutImage: WebsiteImage; galleryTitle: string; gallery: ShowcaseItem[]
+  businessHours: string; zaloUrl: string; mapUrl: string
+  sections: { about: boolean; capabilities: boolean; products: boolean; gallery: boolean; process: boolean; contact: boolean }
 }
 export interface CatalogProduct {
   id: string; name: string; category: string; summary: string; specification: string; material: string
   unit: string; imageUrl: string; priceLabel: string; published: boolean; featured: boolean
+  images?: WebsiteImage[]
 }
 export interface SalesDocument {
   id: string; number: string; kind: DocumentKind; orderId: string; date: string; createdAt: string
@@ -58,10 +68,15 @@ export function getCommerce(data: Data): CommerceData {
 }
 export function ensureCommerce(data: Data): Data { return data.commerce ? data : { ...data, commerce: getCommerce(data) } }
 
+export function getWebsiteSettings(profile: PublicProfile): WebsiteSettings {
+  return profile.site ?? { logo: { src: '', alt: '' }, brandColor: '#167363', heroEyebrow: 'ĐỐI TÁC GIA CÔNG CƠ KHÍ', heroImageAlt: '', aboutTitle: 'Về chúng tôi', aboutText: '', aboutImage: { src: '', alt: '' }, galleryTitle: 'Hình ảnh công việc', gallery: [], businessHours: '', zaloUrl: '', mapUrl: '', sections: { about: true, capabilities: true, products: true, gallery: true, process: true, contact: true } }
+}
+
 /** URL inputs contain no secrets; relative media paths point to site assets. */
 export function safePublicUrl(value: unknown, media = false): value is string {
   if (!text(value, 1000)) return false
   if (value === '') return true
+  if (media && /^media:[a-f0-9]{64}$/.test(value)) return true
   if (media && /^(?:\.?\/)?(?:assets|images)\/[A-Za-z0-9_./-]+$/.test(value) && !value.includes('..')) return true
   if (!/^https:\/\/[^\s/?#@]+(?:[/?#][^\s]*)?$/.test(value)) return false
   return !/[<>"'\\]/.test(value)
@@ -70,10 +85,21 @@ function validCompany(value: unknown): value is CompanyProfile {
   return obj(value) && companyKeys.every(key => text(value[key])) && safePublicUrl(value.website)
 }
 function validProfile(value: unknown, published = false): value is PublicProfile {
-  return obj(value) && profileKeys.every(key => text(value[key], key === 'description' ? 4000 : 1000)) && (!published || required(value.name)) && safePublicUrl(value.website) && safePublicUrl(value.heroImage, true) && Array.isArray(value.capabilities) && value.capabilities.length <= 20 && value.capabilities.every(item => required(item, 300))
+  return obj(value) && profileKeys.every(key => text(value[key], key === 'description' ? 4000 : 1000)) && (!published || required(value.name)) && safePublicUrl(value.website) && safePublicUrl(value.heroImage, true) && Array.isArray(value.capabilities) && value.capabilities.length <= 20 && value.capabilities.every(item => required(item, 300)) && (value.site === undefined || validWebsite(value.site))
 }
 function validProduct(value: unknown, publicOnly = false): value is CatalogProduct {
-  return obj(value) && productKeys.every(key => text(value[key], key === 'specification' ? 3000 : 1000)) && required(value.id) && required(value.name) && safePublicUrl(value.imageUrl, true) && typeof value.featured === 'boolean' && (publicOnly || typeof value.published === 'boolean')
+  return obj(value) && productKeys.every(key => text(value[key], key === 'specification' ? 3000 : 1000)) && required(value.id) && required(value.name) && safePublicUrl(value.imageUrl, true) && typeof value.featured === 'boolean' && (publicOnly || typeof value.published === 'boolean') && (value.images === undefined || Array.isArray(value.images) && value.images.length <= 6 && value.images.every(validImage))
+}
+const onlyKeys = (item: object, allowed: readonly string[]) => Object.keys(item).every(key => allowed.includes(key))
+function validImage(value: unknown): value is WebsiteImage {
+  return obj(value) && onlyKeys(value, ['src', 'alt']) && safePublicUrl(value.src, true) && text(value.alt, 300)
+}
+function validWebsite(value: unknown): value is WebsiteSettings {
+  if (!obj(value) || !onlyKeys(value, ['logo', 'brandColor', 'heroEyebrow', 'heroImageAlt', 'aboutTitle', 'aboutText', 'aboutImage', 'galleryTitle', 'gallery', 'businessHours', 'zaloUrl', 'mapUrl', 'sections'])) return false
+  if (!validImage(value.logo) || !validImage(value.aboutImage) || typeof value.brandColor !== 'string' || !/^#[a-fA-F0-9]{6}$/.test(value.brandColor)) return false
+  if (!['heroEyebrow', 'heroImageAlt', 'aboutTitle', 'galleryTitle', 'businessHours'].every(key => text(value[key], 300)) || !text(value.aboutText, 6000) || !safePublicUrl(value.zaloUrl) || !safePublicUrl(value.mapUrl)) return false
+  if (!Array.isArray(value.gallery) || value.gallery.length > 12 || !value.gallery.every(item => obj(item) && onlyKeys(item, ['id', 'title', 'description', 'image']) && required(item.id) && text(item.title, 200) && text(item.description, 1000) && validImage(item.image)) || new Set(value.gallery.map(item => item.id)).size !== value.gallery.length) return false
+  return obj(value.sections) && onlyKeys(value.sections, ['about', 'capabilities', 'products', 'gallery', 'process', 'contact']) && ['about', 'capabilities', 'products', 'gallery', 'process', 'contact'].every(key => typeof (value.sections as Record<string, unknown>)[key] === 'boolean')
 }
 function validDocument(value: unknown): value is SalesDocument {
   if (!obj(value) || !required(value.id) || !required(value.number) || !kinds.includes(value.kind as DocumentKind) || !required(value.orderId) || !date(value.date) || !timestamp(value.createdAt)) return false
@@ -170,12 +196,25 @@ export function voidDocument(data: Data, id: string, reason: string): Data {
 export function buildPublicCatalog(data: Data, publishedAt = new Date().toISOString()): PublicCatalog {
   const draft = getCommerce(data), source = draft.publicProfile
   const profile: PublicProfile = { name: source.name, tagline: source.tagline, description: source.description, address: source.address, phone: source.phone, email: source.email, website: source.website, heroImage: source.heroImage, capabilities: source.capabilities.map(item => item) }
-  const products: PublicProduct[] = draft.products.filter(item => item.published).map(item => ({ id: item.id, name: item.name, category: item.category, summary: item.summary, specification: item.specification, material: item.material, unit: item.unit, imageUrl: item.imageUrl, priceLabel: item.priceLabel, featured: item.featured }))
+  const image = (item: WebsiteImage): WebsiteImage => ({ src: item.src, alt: item.alt })
+  if (source.site) {
+    const site = source.site
+    profile.site = { logo: image(site.logo), brandColor: site.brandColor, heroEyebrow: site.heroEyebrow, heroImageAlt: site.heroImageAlt, aboutTitle: site.aboutTitle, aboutText: site.aboutText, aboutImage: image(site.aboutImage), galleryTitle: site.galleryTitle, gallery: site.gallery.map(item => ({ id: item.id, title: item.title, description: item.description, image: image(item.image) })), businessHours: site.businessHours, zaloUrl: site.zaloUrl, mapUrl: site.mapUrl, sections: { about: site.sections.about, capabilities: site.sections.capabilities, products: site.sections.products, gallery: site.sections.gallery, process: site.sections.process, contact: site.sections.contact } }
+  }
+  const products: PublicProduct[] = draft.products.filter(item => item.published).map(item => ({ id: item.id, name: item.name, category: item.category, summary: item.summary, specification: item.specification, material: item.material, unit: item.unit, imageUrl: item.imageUrl, priceLabel: item.priceLabel, featured: item.featured, ...(item.images ? { images: item.images.map(image) } : {}) }))
+  if (profile.site) {
+    const site = profile.site
+    if (!site.sections.about) { site.aboutTitle = ''; site.aboutText = ''; site.aboutImage = { src: '', alt: '' } }
+    if (!site.sections.gallery) { site.galleryTitle = ''; site.gallery = [] }
+    if (!site.sections.capabilities) profile.capabilities = []
+    if (!site.sections.products) products.length = 0
+    if (!site.sections.contact) { profile.address = ''; profile.phone = ''; profile.email = ''; profile.website = ''; site.businessHours = ''; site.zaloUrl = ''; site.mapUrl = '' }
+  }
   const result: PublicCatalog = { version: 1, publishedAt, profile, products }
   if (!validatePublicCatalog(result)) throw new Error('Nhập tên doanh nghiệp và kiểm tra nội dung công khai trước khi xuất bản.')
   return result
 }
 export function validatePublicCatalog(value: unknown): value is PublicCatalog {
   const keys = (item: object, allowed: readonly string[]) => Object.keys(item).every(key => allowed.includes(key))
-  return obj(value) && keys(value, ['version', 'publishedAt', 'profile', 'products']) && value.version === 1 && timestamp(value.publishedAt) && validProfile(value.profile, true) && keys(value.profile as unknown as Record<string, unknown>, [...profileKeys, 'capabilities']) && Array.isArray(value.products) && value.products.length <= 100 && value.products.every(product => validProduct(product, true) && keys(product, [...productKeys, 'featured'])) && new Set(value.products.map(product => product.id)).size === value.products.length
+  return obj(value) && keys(value, ['version', 'publishedAt', 'profile', 'products']) && value.version === 1 && timestamp(value.publishedAt) && validProfile(value.profile, true) && keys(value.profile as unknown as Record<string, unknown>, [...profileKeys, 'capabilities', 'site']) && Array.isArray(value.products) && value.products.length <= 100 && value.products.every(product => validProduct(product, true) && keys(product, [...productKeys, 'featured', 'images'])) && new Set(value.products.map(product => product.id)).size === value.products.length
 }

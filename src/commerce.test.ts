@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPublicCatalog, ensureCommerce, getCommerce, issueDocument, safePublicUrl, validateCommerceTransition, validatePublicCatalog, voidDocument, type CatalogProduct } from './commerce'
+import { buildPublicCatalog, ensureCommerce, getCommerce, getWebsiteSettings, issueDocument, safePublicUrl, validateCommerceTransition, validatePublicCatalog, voidDocument, type CatalogProduct } from './commerce'
 import { validateData } from './domain'
 import { createSeedData } from './seed'
 
@@ -106,6 +106,70 @@ describe('commercial documents and compatible payment ledger', () => {
 })
 
 describe('published catalog allowlist', () => {
+  it('keeps older profiles unchanged while providing complete optional website defaults', () => {
+    const data = ready(), before = JSON.stringify(data)
+    const settings = getWebsiteSettings(data.commerce!.publicProfile)
+    expect(settings.brandColor).toBe('#167363')
+    expect(Object.values(settings.sections).every(Boolean)).toBe(true)
+    expect(settings.gallery).toEqual([])
+    expect(JSON.stringify(data)).toBe(before)
+    expect(validateData(data)).toBe(true)
+    expect(buildPublicCatalog(data).profile.site).toBeUndefined()
+  })
+  it('validates bounded website settings and image references without allowing HTML or CSS configuration', () => {
+    const data = ready(), settings = getWebsiteSettings(data.commerce!.publicProfile)
+    data.commerce!.publicProfile.site = settings
+    settings.logo = { src: 'media:' + 'a'.repeat(64), alt: 'Logo doanh nghiệp' }
+    settings.gallery = [{ id: 'g1', title: 'Nhà xưởng', description: 'Năng lực sản xuất', image: { src: 'assets/workshop.svg', alt: 'Nhà xưởng' } }]
+    data.commerce!.products[0].images = [{ src: 'media:' + 'b'.repeat(64), alt: 'Mặt trước' }]
+    expect(validateData(data)).toBe(true)
+    expect(validatePublicCatalog(buildPublicCatalog(data))).toBe(true)
+    expect(safePublicUrl(settings.logo.src)).toBe(false)
+    const corrupt = structuredClone(data)
+    corrupt.commerce!.publicProfile.site!.brandColor = 'red;background:url(evil)'
+    expect(validateData(corrupt)).toBe(false)
+    corrupt.commerce!.publicProfile.site!.brandColor = '#167363'
+    corrupt.commerce!.publicProfile.site!.mapUrl = 'javascript:alert(1)'
+    expect(validateData(corrupt)).toBe(false)
+    corrupt.commerce!.publicProfile.site!.mapUrl = ''
+    corrupt.commerce!.products[0].images = Array.from({ length: 7 }, () => ({ src: '', alt: '' }))
+    expect(validateData(corrupt)).toBe(false)
+    corrupt.commerce!.products[0].images = []
+    corrupt.commerce!.publicProfile.site!.gallery = Array.from({ length: 13 }, (_, index) => ({ ...settings.gallery[0], id: 'g' + index }))
+    expect(validateData(corrupt)).toBe(false)
+  })
+  it('public website projection strips unknown nested private properties', () => {
+    const data = ready(), settings = getWebsiteSettings(data.commerce!.publicProfile)
+    data.commerce!.publicProfile.site = settings
+    settings.gallery = [{ id: 'g1', title: 'Example', description: '', image: { src: '', alt: '' } }]
+    Object.assign(settings, { password: 'PRIVATE-SECRET' })
+    Object.assign(settings.logo, { payroll: 'PRIVATE-SECRET' })
+    Object.assign(settings.gallery[0], { customer: 'PRIVATE-SECRET' })
+    Object.assign(settings.sections, { token: 'PRIVATE-SECRET' })
+    data.commerce!.products[0].images = [Object.assign({ src: '', alt: '' }, { password: 'PRIVATE-SECRET' })]
+    const published = buildPublicCatalog(data)
+    expect(validatePublicCatalog(published)).toBe(true)
+    expect(JSON.stringify(published)).not.toContain('PRIVATE-SECRET')
+    Object.assign(published.profile.site!.logo, { secret: true })
+    expect(validatePublicCatalog(published)).toBe(false)
+  })
+  it('removes disabled section contents from public responses while preserving the editable draft', () => {
+    const data = ready(), profile = data.commerce!.publicProfile
+    const settings = getWebsiteSettings(profile)
+    profile.site = settings
+    profile.capabilities = ['PRIVATE-CAPABILITY']; profile.address = 'PRIVATE-ADDRESS'; profile.phone = 'PRIVATE-PHONE'; profile.email = 'PRIVATE-EMAIL'; profile.website = 'https://private.example.com'
+    settings.logo = { src: 'media:' + 'a'.repeat(64), alt: 'Logo stays visible' }
+    settings.aboutText = 'PRIVATE-ABOUT'; settings.aboutImage = { src: 'media:' + 'b'.repeat(64), alt: 'PRIVATE-IMAGE' }
+    settings.businessHours = 'PRIVATE-HOURS'; settings.zaloUrl = 'https://private.example.com'; settings.mapUrl = 'https://private.example.com'
+    settings.gallery = [{ id: 'g1', title: 'PRIVATE-GALLERY', description: '', image: { src: 'media:' + 'c'.repeat(64), alt: '' } }]
+    settings.sections = { about: false, capabilities: false, products: false, gallery: false, process: false, contact: false }
+    const before = JSON.stringify(data), result = buildPublicCatalog(data)
+    expect(JSON.stringify(result)).not.toMatch(/PRIVATE|private\.example|media:bbbb|media:cccc/)
+    expect(result.profile.site!.logo.src).toBe(settings.logo.src)
+    expect(result.products).toEqual([])
+    expect(result.profile.site!.gallery).toEqual([])
+    expect(JSON.stringify(data)).toBe(before)
+  })
   it('copies only curated profile and published product fields, never business data or unknown fields', () => {
     const data = ready()
     data.commerce!.company.bankAccount = 'PRIVATE-BANK'
