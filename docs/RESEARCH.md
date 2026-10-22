@@ -2,7 +2,7 @@
 
 Ngày đối chiếu tài liệu: **22/10/2026**. Đây là nghiên cứu tài liệu và đề xuất sản phẩm, chưa phải kết quả phỏng vấn doanh nghiệp cụ thể. Chính sách và hạn mức dịch vụ có thể thay đổi.
 
-**Cập nhật lựa chọn triển khai:** người dùng chọn Google Sheets trước. Đã bổ sung kết nối Apps Script dùng khóa riêng, đồng bộ thủ công có kiểm tra phiên bản; xem [hướng dẫn hiện tại](GOOGLE_SHEETS.md). Phần so sánh và đề xuất Supabase bên dưới là nghiên cứu ban đầu, không phải yêu cầu phải dùng Supabase.
+**Cập nhật lựa chọn triển khai:** người dùng chọn Google Sheets trước. Đã bổ sung kết nối Apps Script dùng khóa riêng, ghi nhớ kết nối trên thiết bị và tự đồng bộ có kiểm tra phiên bản; xem [hướng dẫn hiện tại](GOOGLE_SHEETS.md). Phần so sánh và đề xuất Supabase bên dưới là nghiên cứu ban đầu, không phải yêu cầu phải dùng Supabase.
 
 ## 1. Kết luận triển khai
 

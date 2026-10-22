@@ -37,7 +37,7 @@ Không mở `dist/index.html` bằng `file://`; cần web server. Giao diện đ
 - **Cấu hình lương:** ngày công chuẩn, giờ/ngày, hệ số tăng ca, tỷ lệ bảo hiểm, danh mục phụ cấp và mức mặc định.
 - **Bảng lương:** công thức thu nhập/thực lĩnh rõ ràng; thưởng, tạm ứng, khấu trừ, thuế nhập tay; chi tiết lương, CSV, chốt tháng giữ nguyên lịch sử và mở lại có xác nhận.
 - **Dữ liệu:** CSV để mở trong Sheets/Excel, sao lưu/khôi phục JSON được kiểm tra, đặt lại dữ liệu mẫu có xác nhận.
-- **Google Sheets:** kết nối qua Apps Script và khóa riêng; tải/lưu thủ công giữa thiết bị, kiểm tra phiên bản chống ghi đè, giữ đầy đủ chấm công và kỳ lương đã chốt. Sheet vẫn riêng tư; có các tab báo cáo để xem. Cần thiết lập theo [hướng dẫn](docs/GOOGLE_SHEETS.md).
+- **Google Sheets:** cấu hình một lần trên mỗi thiết bị, tự kết nối khi mở lại, tự lưu sau thay đổi và kiểm tra dữ liệu mới khi quay lại ứng dụng. Kiểm tra phiên bản chống ghi đè, giữ đầy đủ chấm công và kỳ lương đã chốt. Sheet vẫn riêng tư; có các tab báo cáo để xem. Cần thiết lập theo [hướng dẫn](docs/GOOGLE_SHEETS.md).
 - **Supabase tùy chọn:** giữ bộ kết nối cũ cho môi trường đã cấu hình; không cần dùng khi chọn Google Sheets.
 
 Các nút thao tác cập nhật dữ liệu thực trong demo. Số phần trăm ở danh sách đơn phản ánh **mốc công đoạn**, còn số chi tiết hoàn thành theo dõi riêng ở chi tiết/bảng sản xuất. Kho chưa tự trừ theo định mức đơn hàng. Một đơn hiện có một dòng chi tiết. Tên, thông tin liên hệ và số liệu seed là giả lập.
@@ -48,9 +48,9 @@ Các nút thao tác cập nhật dữ liệu thực trong demo. Số phần tră
 
 **Demo:** localStorage, không mất tiền/không cần tài khoản; không tự đồng bộ giữa điện thoại và máy tính. Nên xuất JSON trước khi xóa bộ nhớ trình duyệt. JSON khôi phục đầy đủ; CSV xuất riêng danh sách đơn hàng hoặc bảng lương của tháng được chọn.
 
-**Lựa chọn hiện tại: Google Sheets + Apps Script.** Tạo một Sheet mới, chạy `setup()` trong script của bạn, triển khai Web App rồi nhập URL `/exec` và khóa trong Cài đặt. Không cần Supabase hoặc thẻ thanh toán. Khóa không nằm trong mã nguồn và không được ứng dụng lưu trong localStorage/sessionStorage. Các thiết bị dùng cùng khóa có quyền đọc/ghi toàn bộ dữ liệu, gồm lương; chưa có quyền riêng từng nhân viên. Bản lưu cục bộ vẫn còn sau khi ngắt kết nối.
+**Lựa chọn hiện tại: Google Sheets + Apps Script.** Tạo một Sheet mới, chạy `setup()` trong script của bạn, triển khai Web App rồi nhập URL `/exec` và khóa trong Cài đặt một lần trên mỗi thiết bị. Không cần Supabase hoặc thẻ thanh toán. Khi chọn ghi nhớ, cấu hình và khóa lưu trong localStorage trên thiết bị cá nhân; không nằm trong mã nguồn, URL hoặc bản sao JSON. Các thiết bị dùng cùng khóa có quyền đọc/ghi toàn bộ dữ liệu, gồm lương; chưa có quyền riêng từng nhân viên. Ngắt kết nối xóa cấu hình đã nhớ và giữ bản dữ liệu cục bộ.
 
-Đồng bộ thủ công, có khóa phía máy chủ và kiểm tra revision. Khi xung đột hoặc chưa biết kết quả ghi vì mất mạng, cần sao lưu JSON rồi tải bản mới trước khi lưu tiếp. Giới hạn pilot 2 MiB JSON mỗi snapshot; không lưu ảnh/bản vẽ trong snapshot. Sửa dữ liệu trong ứng dụng, không sửa trực tiếp tab báo cáo để nhập ngược. Hướng dẫn: [docs/GOOGLE_SHEETS.md](docs/GOOGLE_SHEETS.md). Kết nối trên Google thật còn cần triển khai và nghiệm thu bằng tài khoản của bạn.
+Đồng bộ tự động sau thay đổi, có khóa phía máy chủ và kiểm tra revision. Thay đổi lưu cục bộ trước; chờ trạng thái đã đồng bộ trước khi đóng trang. Khi mất mạng, ứng dụng đối chiếu lại bản Google trước khi gửi tiếp. Khi hai thiết bị cùng sửa, tự lưu tạm dừng để người dùng xử lý xung đột; không tự gộp dữ liệu. Giới hạn pilot 2 MiB JSON mỗi snapshot; không lưu ảnh/bản vẽ trong snapshot. Sửa dữ liệu trong ứng dụng, không sửa trực tiếp tab báo cáo để nhập ngược. Hướng dẫn: [docs/GOOGLE_SHEETS.md](docs/GOOGLE_SHEETS.md).
 
 Bộ kết nối Supabase trước đây vẫn có trong mã nguồn, xem [docs/SUPABASE.md](docs/SUPABASE.md); đây là lựa chọn thay thế, không cần cấu hình cho Google Sheets.
 
@@ -87,7 +87,7 @@ npx playwright test
 npm run verify:dist
 ```
 
-80 unit tests kiểm tra nghiệp vụ, lương, lưu trữ, bộ kết nối Sheets và Apps Script giả lập. 34 Playwright cases kiểm tra desktop/điện thoại, gồm 12 trường hợp Sheets với HTTP mô phỏng. `verify:dist` kiểm tra bản build dưới đường dẫn repository và chụp ảnh sáng/tối. `verify:apps-script` kiểm tra mã triển khai khớp bộ kiểm tra nghiệp vụ. Google Apps Script thật và Supabase thật chưa được kiểm thử vì chưa có tài khoản/endpoint được cấu hình.
+Unit tests kiểm tra nghiệp vụ, lương, lưu trữ, bộ kết nối Sheets và Apps Script giả lập. Playwright kiểm tra desktop/điện thoại, gồm kết nối một lần, tự lưu, mở lại trang, mất mạng, xung đột và bảo vệ biểu mẫu đang sửa. `verify:dist` kiểm tra bản build dưới đường dẫn repository và chụp ảnh sáng/tối. `verify:apps-script` kiểm tra mã triển khai khớp bộ kiểm tra nghiệp vụ. Đã xác nhận lưu/đọc dữ liệu demo với Google Apps Script thật trên tài khoản người dùng; Supabase thật chưa được kiểm thử. Kết quả từng bản nằm trong [biên bản kiểm tra](docs/VERIFICATION.md).
 
 ## Tài liệu
 

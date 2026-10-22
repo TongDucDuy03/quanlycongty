@@ -2,7 +2,16 @@
 
 Ngày: 22/10/2026. Thư mục dự án: `D:\quản lý công ty`. Ban đầu thư mục trống, không có mã nguồn hoặc Git remote. Nhóm diey-team gồm nghiên cứu, kiến trúc, triển khai nghiệp vụ, QA độc lập và review độc lập. Lead tích hợp và kiểm tra bản cuối.
 
-## Bổ sung Google Sheets — 22/10/2026
+## Tự động đồng bộ Google Sheets — 22/10/2026
+
+- Kết nối được ghi nhớ trên từng trình duyệt khi người dùng chọn; khóa nằm ngoài dữ liệu nghiệp vụ và bản sao JSON. Mở lại tự kết nối; thay đổi đã lưu trong biểu mẫu tự gửi sau khoảng 1,5 giây. Có trạng thái lưu và đường dẫn đến phần xử lý kết nối ở đầu trang.
+- `npm test`: **103/103** đạt, gồm 23 kiểm thử mới cho đối chiếu bản cục bộ/bản Google và dữ liệu ghi nhớ bị hỏng. `npm run build` đạt; Apps Script không đổi, không cần người dùng triển khai lại backend.
+- QA độc lập: **48/48 trường hợp E2E** đạt trên desktop/mobile (26 Sheets, 22 nghiệp vụ/lương). Gồm ghi nhớ và quên kết nối, tự lưu lương, sửa trong lúc đang gửi, offline qua reload, phản hồi ghi bị mất, xung đột qua reload, tab cũ, nhận bản mới khi focus, giữ bản nháp lương, cache hỏng và khởi tạo mất phản hồi không chồng yêu cầu.
+- `npm run verify:dist` đạt: assets dưới đường dẫn con, điều hướng khi tải lại trang, màn hình desktop/mobile và sáng/tối không tràn ngang hoặc lỗi JavaScript. Đã xem ảnh Sheets mobile sáng và desktop tối.
+- Review độc lập đã kiểm tra và sửa: chồng yêu cầu khi khởi tạo mất phản hồi, cập nhật trạng thái từ tab cũ, đồng bộ đến khi đang sửa biểu mẫu, phục hồi cache hỏng và tham chiếu dữ liệu React trước khi render. Không còn lỗi chặn theo review mã cuối.
+- Tự lưu dùng SHA-256 của bản đã xác nhận và bản đang gửi để đối chiếu sau reload/lỗi mạng; không tự gộp hai thiết bị cùng sửa. Kiểm tra bản mới khi quay lại ứng dụng và mỗi 60 giây khi trang hiển thị. Biểu mẫu đang sửa được giữ; sau khi đóng, có thể cần lần kiểm tra tiếp theo để nhận bản mới.
+
+## Bản Google Sheets đầu tiên, đồng bộ thủ công — 22/10/2026
 
 - `npm test`: **80/80** đạt, gồm 23 kiểm thử transport và 16 kiểm thử backend Apps Script giả lập.
 - `npx playwright test`: **34/34** đạt, gồm 12 trường hợp Sheets trên desktop/mobile. Đã kiểm tra tải/lưu đầy đủ payroll, khởi tạo có xác nhận, khóa không lưu trong localStorage/sessionStorage/URL, hủy tải, sửa trong lúc đang tải, lỗi mạng, xung đột revision và tab cục bộ cũ bị chặn gửi.
@@ -10,7 +19,7 @@ Ngày: 22/10/2026. Thư mục dự án: `D:\quản lý công ty`. Ban đầu th�
 - Đã xem ảnh [Sheets desktop sáng](previews/sheets-desktop-light.png), [desktop tối](previews/sheets-desktop-dark.png), [mobile sáng](previews/sheets-mobile-light.png), [mobile tối](previews/sheets-mobile-dark.png).
 - Review độc lập phát hiện backend kiểm tra schema chưa đủ chặt: đã thay bằng cùng bộ `validateData` của frontend, sinh vào `Code.gs`. Các trường hợp ngày sai, cấu hình lương sai, mã nhân viên/công trùng, kỳ lương hỏng và tổng đơn không an toàn bị từ chối trước commit; dữ liệu cũ và revision được giữ nguyên. Đã thống nhất độ dài khóa 32–256 ký tự.
 - Vitest cập nhật 4.1.12; npm báo **0 lỗ hổng** sau cập nhật. Bộ kiểm tra đầy đủ chạy đạt trên phiên bản mới.
-- **Chưa kiểm thử Google thật:** chưa có deployment Apps Script của chủ tài khoản. CORS/redirect, cấp quyền Google, quota và hiệu năng thực tế phải được nghiệm thu sau thiết lập. Test mock không được coi là kết nối Google thật thành công.
+- **Trạng thái tại thời điểm kiểm thử bản đầu:** chưa có deployment Apps Script của chủ tài khoản; các test phía trên dùng mô phỏng. Sau đó người dùng đã cấp quyền và triển khai: xác nhận từ frontend công khai lưu thành công phiên bản 1, API đọc thật trả HTTP 200 với 12 đơn, 6 khách, 7 vật tư, 5 nhân viên, 225 dòng công và cấu hình lương. Đây là kiểm tra kết nối dữ liệu demo, chưa phải đo quota hoặc hiệu năng dưới tải lớn.
 - **Đã xuất bản frontend:** commit `35f8e6d`, [workflow 39725904305](https://github.com/TongDucDuy03/quanlycongty/actions/runs/39725904305) thành công. Kiểm tra trực tiếp GitHub Pages trên desktop/mobile: màn hình kết nối Sheets, ô khóa che nội dung, link hướng dẫn, chế độ tối và phân hệ lương hiển thị; không lỗi JavaScript hoặc tràn ngang. Đây là xác minh frontend công khai, không phải kết nối dữ liệu Google thật.
 
 ## Kết quả bản bàn giao nhân sự trước khi bổ sung Sheets

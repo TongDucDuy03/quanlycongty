@@ -10,6 +10,11 @@
 .sheets-connection label { font-weight: 600; margin-top: 5px; }
 .sheets-connection input { width: 100%; min-width: 0; padding: 11px 12px; color: var(--text); background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px; }
 .sheets-connection small { color: var(--muted); line-height: 1.6; }
+.sheets-connection .sheets-remember { display: flex; align-items: flex-start; gap: 10px; font-weight: 500; line-height: 1.6; cursor: pointer; }
+.sheets-connection .sheets-remember input { width: 18px; height: 18px; padding: 0; margin: 3px 0 0; flex: 0 0 auto; accent-color: var(--green); }
+.sheets-confirm { padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--green-soft); line-height: 1.7; }
+.sheets-confirm .sheets-actions { margin: 12px 0 0; }
+.sheets-connection .btn:disabled { opacity: .55; cursor: not-allowed; }
 .sheets-connection .btn { min-height: 42px; padding: 10px 14px; display: inline-flex; gap: 8px; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-alt); font-weight: 600; }
 .sheets-connection .btn.primary { background: var(--green); color: var(--surface); border-color: var(--green); }
 .sheets-connection .btn svg { flex: 0 0 auto; }

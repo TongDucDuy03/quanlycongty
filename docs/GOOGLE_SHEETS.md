@@ -18,24 +18,24 @@ Chỉ gửi link Google Sheet chưa đủ để ứng dụng ghi dữ liệu. Sa
 4. Xem **Execution log / Nhật ký thực thi** để lấy khóa kết nối do script tạo. Chỉ người giữ khóa mới gọi được API đọc/ghi; người giữ khóa có thể đọc toàn bộ dữ liệu, kể cả tiền lương. Cất khóa trong trình quản lý mật khẩu.
 5. Bấm **Deploy → New deployment → Web app**. Chọn **Execute as: Me**, **Who has access: Anyone**, rồi **Deploy**. “Anyone” ở đây áp dụng cho endpoint; script vẫn kiểm tra khóa cho mọi lần đọc/ghi. Quyền của Google Sheet giữ ở **Restricted**.
 6. Sao chép URL dạng `https://script.google.com/macros/s/…/exec`. Không dùng URL `/dev`, URL trang chỉnh sửa script hoặc URL Google Sheet cho ô kết nối.
-7. Mở ứng dụng → **Cài đặt & dữ liệu → Kết nối Google Sheets**. Dán URL Web App và khóa, bấm **Kết nối Google Sheets**.
+7. Mở ứng dụng → **Cài đặt & dữ liệu → Kết nối Google Sheets**. Dán URL Web App và khóa, giữ lựa chọn ghi nhớ trên thiết bị rồi bấm **Kết nối Google Sheets**. Chỉ cần làm một lần trên mỗi trình duyệt; lần sau ứng dụng tự kết nối.
 8. Nếu Sheet chưa có dữ liệu ứng dụng, kiểm tra bản dữ liệu đang hiển thị rồi bấm **Khởi tạo Sheet**. Ứng dụng sẽ hỏi trước khi gửi; không tự tải dữ liệu mẫu lên Google.
-9. Trên thiết bị thứ hai, nhập cùng URL và khóa. Kết nối rồi xác nhận tải dữ liệu hiện có. Tạo một thay đổi thử trên thiết bị thứ nhất, bấm **Lưu lên Google Sheets**, sau đó bấm **Tải từ Google Sheets** ở thiết bị thứ hai để kiểm tra.
+9. Trên thiết bị thứ hai, nhập cùng URL và khóa một lần, rồi nhận dữ liệu hiện có. Thử sửa một đơn trên thiết bị thứ nhất, chờ trạng thái **đã đồng bộ**, rồi trở lại cửa sổ ứng dụng trên thiết bị thứ hai để kiểm tra cập nhật.
 
 Khi cập nhật `Code.gs`, phải vào **Deploy → Manage deployments → Edit → Version: New version → Deploy**. Chỉ lưu file không cập nhật bản `/exec` đang dùng.
 
 ## Cách dùng hằng ngày
 
-1. **Tải từ Google Sheets** trước khi bắt đầu làm việc trên một thiết bị khác. Việc tải thay thế bản trên thiết bị, nên xuất JSON trước nếu còn thay đổi chưa gửi.
-2. Thêm/sửa đơn, kho, chấm công hoặc lương như bình thường. Thay đổi được lưu cục bộ trước.
-3. Bấm **Lưu lên Google Sheets** sau khi hoàn thành. Chờ thông báo thành công; đóng trình duyệt trước đó không đảm bảo dữ liệu đã lên Sheet.
+1. Mở ứng dụng. Trên thiết bị đã ghi nhớ kết nối, ứng dụng tự kiểm tra và nhận dữ liệu mới.
+2. Thêm/sửa đơn, kho, chấm công hoặc lương như bình thường. Khi bạn hoàn tất thao tác trong biểu mẫu, thay đổi được lưu trên thiết bị rồi tự gửi lên Sheet sau khoảng 1–2 giây.
+3. Chờ trạng thái **đã đồng bộ** trước khi đóng ứng dụng. **Đồng bộ ngay** dùng để yêu cầu kiểm tra ngay, không phải bước bắt buộc sau mỗi lần sửa.
 4. Xuất **Sao lưu JSON** định kỳ và trước khi đổi kết nối. CSV phục vụ xem bảng; JSON giữ đầy đủ dữ liệu khôi phục.
 
-Đồng bộ **thủ công**, không realtime. Sau khi tải lại trang phải nhập lại khóa. Ứng dụng chỉ nhớ URL endpoint, không lưu khóa trong localStorage/sessionStorage. Ngắt kết nối xóa khóa khỏi phiên ứng dụng nhưng **không xóa bản dữ liệu trên thiết bị**. Tránh dùng máy công cộng.
+Ứng dụng **tự đồng bộ** khi có thay đổi, khi mở lại/quay lại cửa sổ và kiểm tra định kỳ lúc trang đang mở. Đây không phải đồng bộ tức thì từng ký tự. Khi chọn ghi nhớ, URL và khóa được lưu trong localStorage của trình duyệt trên thiết bị đó; không đưa vào mã nguồn, URL hay tệp sao lưu JSON. Chỉ ghi nhớ trên thiết bị cá nhân. Ngắt kết nối xóa thông tin kết nối đã ghi nhớ nhưng **không xóa bản dữ liệu trên thiết bị**. Xóa dữ liệu trình duyệt, dùng chế độ riêng tư hoặc đổi thiết bị có thể cần cấu hình lại.
 
-Nếu hai thiết bị cùng sửa một phiên bản, bản lưu sau bị chặn để tránh ghi đè. Xuất JSON của bản chưa gửi, tải bản mới nhất, rồi nhập lại những thay đổi cần giữ. Chưa có tự gộp hai bản.
+Nếu hai thiết bị cùng sửa một phiên bản, ứng dụng tạm dừng tự lưu và báo xung đột để tránh ghi đè. Xuất JSON của bản chưa gửi, nhận bản mới nhất, rồi nhập lại những thay đổi cần giữ. Chưa có tự gộp hai bản; tải lại trang không tự bỏ qua xung đột.
 
-Nếu mất mạng hoặc hết thời gian chờ khi lưu, máy chủ có thể đã ghi xong. Ứng dụng yêu cầu tải lại để xác định trạng thái trước khi lưu tiếp; không tự gửi lại yêu cầu ghi.
+Nếu mất mạng, các thao tác đã lưu trên thiết bị vẫn còn. Ứng dụng thử kết nối lại và đối chiếu bản phía Google trước khi tiếp tục gửi. Nếu máy chủ đã ghi xong nhưng phản hồi bị mất, ứng dụng nhận diện bản đã gửi để không ghi đè mù. Giữ trang mở hoặc mở lại khi có mạng và chờ trạng thái đã đồng bộ. Đây chưa phải PWA cài đặt chạy offline; lần mở trang mới vẫn cần tải được ứng dụng.
 
 ## Dữ liệu nằm ở đâu?
 

@@ -203,6 +203,7 @@ export default function App() {
     [dirty, setDirty] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const tokenRef = useRef(initial.token);
+  const localReadErrorRef = useRef(Boolean(initial.warning));
   const ownerRef = useRef("");
   const generationRef = useRef(0);
   const authGenerationRef = useRef(0);
@@ -301,6 +302,8 @@ export default function App() {
         tokenRef.current,
         ownerRef.current || undefined,
       );
+      currentDataRef.current = next;
+      localReadErrorRef.current = false;
       setData(next);
       generationRef.current++;
       setDirty(true);
@@ -653,14 +656,20 @@ export default function App() {
             </strong>
           </div>
           <div className="top-actions">
-            <span className="local-indicator">
+            <button
+              type="button"
+              className="local-indicator"
+              data-sync-state={sheetsStatus.includes("cần xử lý") ? "attention" : /đang|chờ|chưa/.test(sheetsStatus) ? "pending" : "ready"}
+              onClick={() => go("settings")}
+              title="Xem trạng thái kết nối và đồng bộ dữ liệu"
+            >
               <i />
               {sheetsStatus || (cloudUser
                 ? dirty
                   ? "Đám mây · Chưa gửi thay đổi"
                   : "Đám mây · Đồng bộ thủ công"
                 : "Demo · Lưu trên máy")}
-            </span>
+            </button>
             <button
               className="icon-button"
               title={
@@ -1492,9 +1501,21 @@ export default function App() {
                 data={data}
                 disabled={Boolean(cloudUser)}
                 onStatus={setSheetsStatus}
+                beforeUpload={() => {
+                  if (!localReadErrorRef.current) return true;
+                  setNotice("Bản lưu trên thiết bị bị lỗi. Hãy nhận lại dữ liệu từ Google Sheets hoặc khôi phục bản sao trước khi tiếp tục.");
+                  return false;
+                }}
                 beforeSave={() => {
                   try {
                     assertLocalDataCurrent(tokenRef.current, ownerRef.current || undefined);
+                    if (tokenRef.current === null) {
+                      tokenRef.current = saveData(
+                        currentDataRef.current,
+                        null,
+                        ownerRef.current || undefined,
+                      );
+                    }
                     return true;
                   } catch (error) {
                     setNotice(error instanceof Error ? error.message : "Không đọc được bản lưu trên thiết bị.");
@@ -1515,9 +1536,10 @@ export default function App() {
                 </span>
                 <h2>Bản lưu trên thiết bị</h2>
                 <p>
-                  Thay đổi được lưu trên trình duyệt này. Khi kết nối Google
-                  Sheets, hãy bấm lưu để gửi thay đổi và tải để nhận dữ liệu
-                  trên thiết bị khác. Xóa dữ liệu trình duyệt sẽ xóa bản lưu cục bộ.
+                  Thay đổi được lưu trên thiết bị trước rồi tự động gửi lên
+                  Google Sheets khi đã kết nối. Chờ trạng thái “Đã đồng bộ”
+                  trước khi đóng ứng dụng. Bạn có thể tải thêm bản sao JSON
+                  để giữ riêng.
                 </p>
                 <div className="settings-status">
                   <span className="online-dot" /> {data.orders.length} đơn hàng

@@ -10,7 +10,7 @@
 - **Chấm công:** ghi giờ làm, nghỉ phép hưởng lương, tăng ca ngày thường/ngày nghỉ/ngày lễ; tổng hợp công theo tháng.
 - **Cấu hình lương:** ngày/giờ công chuẩn, hệ số tăng ca, tỷ lệ bảo hiểm và các loại phụ cấp cố định hoặc theo ngày thực làm.
 - **Bảng lương:** tính thu nhập và thực lĩnh, thêm thưởng/tạm ứng/khấu trừ/thuế nhập tay, xem chi tiết, chốt/mở lại kỳ lương và xuất CSV.
-- **Google Sheets:** tải/lưu dữ liệu giữa máy tính và điện thoại qua Apps Script, kiểm tra phiên bản chống ghi đè, giữ cả chấm công và kỳ lương đã chốt; Sheet vẫn riêng tư. Đồng bộ bằng nút bấm, chưa realtime.
-- **Sao lưu:** bản lưu trên thiết bị, xuất/khôi phục JSON và xuất CSV. Khóa kết nối chỉ giữ trong phiên ứng dụng; ngắt kết nối không xóa bản lưu cục bộ.
+- **Google Sheets:** cấu hình một lần trên mỗi thiết bị, tự kết nối khi mở lại và tự lưu sau thay đổi. Nhận bản mới khi quay lại ứng dụng và kiểm tra định kỳ; giữ cả chấm công/kỳ lương đã chốt, chặn ghi đè khi hai máy cùng sửa.
+- **Sao lưu:** bản lưu trên thiết bị, xuất/khôi phục JSON và xuất CSV. Có lựa chọn ghi nhớ khóa trên thiết bị cá nhân; khóa không nằm trong bản sao JSON. Ngắt kết nối xóa cấu hình đã nhớ, giữ bản dữ liệu cục bộ.
 
 Bản công khai trên GitHub Pages dùng dữ liệu giả để demo. Chưa có tích hợp máy chấm công, tự tính thuế lũy tiến hoặc phân quyền riêng cho phòng nhân sự. Người giữ khóa Sheets có quyền đọc/ghi toàn bộ dữ liệu. Cần thiết lập một lần theo [hướng dẫn Google Sheets](GOOGLE_SHEETS.md); chỉ có link Sheet chưa đủ để kết nối. Apps Script áp dụng hạn mức Google và bản tích hợp giới hạn 2 MiB/snapshot.

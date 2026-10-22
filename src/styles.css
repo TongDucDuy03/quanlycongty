@@ -344,6 +344,9 @@ button {
   gap: 15px;
 }
 .local-indicator {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
   font-size: 9px;
   color: var(--muted);
   display: flex;
@@ -358,6 +361,10 @@ button {
   background: var(--green);
   border-radius: 50%;
 }
+.local-indicator[data-sync-state="attention"] { color: var(--danger, #b42318); }
+.local-indicator[data-sync-state="attention"] i { background: var(--danger, #b42318); }
+.local-indicator[data-sync-state="pending"] i { background: #b7791f; }
+.local-indicator:focus-visible { outline: 2px solid var(--green); outline-offset: 4px; border-radius: 4px; }
 .icon-button {
   display: inline-flex;
   align-items: center;
