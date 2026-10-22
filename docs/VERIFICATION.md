@@ -10,6 +10,7 @@ Ngày: 22/10/2026. Thư mục dự án: `D:\quản lý công ty`. Ban đầu th�
 - `npm run verify:dist` đạt: assets dưới đường dẫn con, điều hướng khi tải lại trang, màn hình desktop/mobile và sáng/tối không tràn ngang hoặc lỗi JavaScript. Đã xem ảnh Sheets mobile sáng và desktop tối.
 - Review độc lập đã kiểm tra và sửa: chồng yêu cầu khi khởi tạo mất phản hồi, cập nhật trạng thái từ tab cũ, đồng bộ đến khi đang sửa biểu mẫu, phục hồi cache hỏng và tham chiếu dữ liệu React trước khi render. Không còn lỗi chặn theo review mã cuối.
 - Tự lưu dùng SHA-256 của bản đã xác nhận và bản đang gửi để đối chiếu sau reload/lỗi mạng; không tự gộp hai thiết bị cùng sửa. Kiểm tra bản mới khi quay lại ứng dụng và mỗi 60 giây khi trang hiển thị. Biểu mẫu đang sửa được giữ; sau khi đóng, có thể cần lần kiểm tra tiếp theo để nhận bản mới.
+- Đã xuất bản commit `c088c52`; [workflow 39729520646](https://github.com/TongDucDuy03/quanlycongty/actions/runs/39729520646) thành công. Trên Chrome của người dùng, cấu hình ghi nhớ được bật và tải lại trang tự kết nối phiên bản 1 mà không nhập khóa. Sửa ghi chú một đơn mẫu qua UI tự lưu lên Google thật ở phiên bản 2; hoàn trả ghi chú tự lưu phiên bản 3. Đọc API xác nhận toàn bộ dữ liệu phiên bản 3 giống bản trước kiểm tra. Không bấm nút đồng bộ thủ công trong hai lần ghi này.
 
 ## Bản Google Sheets đầu tiên, đồng bộ thủ công — 22/10/2026
 
