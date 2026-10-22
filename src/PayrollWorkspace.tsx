@@ -22,6 +22,7 @@ import {
   isPayrollClosed,
   payrollToCSV,
   reopenPayroll,
+  removeAttendance,
   upsertAdjustment,
   upsertAttendance,
   upsertEmployee,
@@ -38,6 +39,8 @@ import type {
   PayrollRow,
 } from "./payroll";
 import "./payroll.css";
+import AttendanceMonthGrid from './AttendanceMonthGrid';
+import AttendanceEditor from './AttendanceEditor';
 
 type Props = {
   value: PayrollData | undefined;
@@ -45,7 +48,7 @@ type Props = {
 };
 type Modal =
   | { type: "employee"; employee?: Employee }
-  | { type: "attendance"; employee: Employee }
+  | { type: "attendance"; employee: Employee; date: string }
   | { type: "adjustment"; row: PayrollRow }
   | { type: "detail"; row: PayrollRow }
   | { type: "allowance"; allowance?: AllowanceType }
@@ -378,6 +381,8 @@ export default function PayrollWorkspace({ value, onChange }: Props) {
   const data = value || empty;
   const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("employees");
   const [date, setDate] = useState(localDate);
+  const [attendanceView, setAttendanceView] = useState<'month' | 'day'>('month');
+  const [attendanceSearch, setAttendanceSearch] = useState('');
   const [month, setMonth] = useState(() => localDate().slice(0, 7));
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<Modal>(null);
@@ -398,6 +403,7 @@ export default function PayrollWorkspace({ value, onChange }: Props) {
   }
   const closed = isPayrollClosed(data, month);
   const attendanceClosed = isPayrollClosed(data, attendanceMonth);
+  const attendanceSettings = data.periods.find(period => period.month === attendanceMonth)?.settings ?? data.settings;
   const active = data.employees.filter(
     (employee) =>
       employee.startDate <= date &&
@@ -449,11 +455,12 @@ export default function PayrollWorkspace({ value, onChange }: Props) {
     rows.reduce((sum, row) => sum + row[key], 0);
   const employeeForAttendance =
     modal?.type === "attendance" ? modal.employee : undefined;
+  const attendanceDate = modal?.type === 'attendance' ? modal.date : date;
   const attendance = employeeForAttendance
     ? data.attendance.find(
         (record) =>
           record.employeeId === employeeForAttendance.id &&
-          record.date === date,
+          record.date === attendanceDate,
       )
     : undefined;
   const adjustment =
@@ -659,23 +666,30 @@ export default function PayrollWorkspace({ value, onChange }: Props) {
         {tab === "attendance" && (
           <>
             <section className="payroll-card">
-              <div className="payroll-toolbar">
+              <div className="payroll-toolbar attendance-toolbar">
                 <div>
-                  <h3>Chấm công theo ngày</h3>
+                  <h3>{attendanceView === 'month' ? 'Bảng chấm công tháng' : 'Chấm công theo ngày'}</h3>
                   <p className="payroll-muted">
-                    Ghi giờ thực làm, nghỉ hưởng lương và tăng ca.
+                    {attendanceView === 'month' ? 'Bấm ô trống để tích đủ công. Bấm ô đã chấm để sửa hoặc bỏ chấm.' : 'Ghi giờ thực làm, nghỉ hưởng lương và tăng ca.'}
                   </p>
                 </div>
-                <div className="payroll-actions">
-                  <Field label="Ngày chấm công">
+                <div className="payroll-actions attendance-controls">
+                  <div className="attendance-view-switch" role="group" aria-label="Kiểu bảng chấm công">
+                    <button type="button" aria-pressed={attendanceView === 'month'} onClick={() => setAttendanceView('month')}>Bảng tháng</button>
+                    <button type="button" aria-pressed={attendanceView === 'day'} onClick={() => setAttendanceView('day')}>Theo ngày</button>
+                  </div>
+                  <Field label={attendanceView === 'month' ? 'Tháng chấm công' : 'Ngày chấm công'}>
                     <input
                       className="payroll-input"
-                      type="date"
-                      min="2000-01-01"
-                      max="2199-12-31"
-                      value={date}
+                      type={attendanceView === 'month' ? 'month' : 'date'}
+                      min={attendanceView === 'month' ? '2000-01' : '2000-01-01'}
+                      max={attendanceView === 'month' ? '2199-12' : '2199-12-31'}
+                      value={attendanceView === 'month' ? attendanceMonth : date}
                       onChange={(event) => {
-                        if (event.target.value) setDate(event.target.value);
+                        if (event.target.value) {
+                          setDate(attendanceView === 'month' ? `${event.target.value}-01` : event.target.value);
+                          setMonth(event.target.value.slice(0, 7));
+                        }
                       }}
                     />
                   </Field>
@@ -687,7 +701,24 @@ export default function PayrollWorkspace({ value, onChange }: Props) {
                   )}
                 </div>
               </div>
-              <div className="payroll-scroll">
+              {attendanceView === 'month' ? <>
+                <div className="attendance-search"><Field label="Tìm nhân viên chấm công"><input className="payroll-input" type="search" placeholder="Tên, mã nhân viên, bộ phận…" value={attendanceSearch} onChange={event => setAttendanceSearch(event.target.value)} /></Field></div>
+                <AttendanceMonthGrid
+                  month={attendanceMonth}
+                  employees={data.employees}
+                  records={data.attendance}
+                  summaries={attendanceRows}
+                  hoursPerDay={attendanceSettings.hoursPerDay}
+                  closed={attendanceClosed}
+                  search={attendanceSearch}
+                  onEdit={(employee, selectedDate) => show({ type: 'attendance', employee, date: selectedDate })}
+                  onMark={(employee, selectedDate) => save(() => upsertAttendance(data, {
+                    id: newId(), employeeId: employee.id, date: selectedDate,
+                    regularHours: data.settings.hoursPerDay, paidLeaveHours: 0,
+                    overtimeWeekdayHours: 0, overtimeRestDayHours: 0, overtimeHolidayHours: 0, note: '',
+                  }), `Đã chấm đủ công cho ${employee.name}`, false)}
+                />
+              </> : <div className="payroll-scroll">
                 <table className="payroll-table">
                   <thead>
                     <tr>
@@ -741,7 +772,7 @@ export default function PayrollWorkspace({ value, onChange }: Props) {
                               disabled={attendanceClosed}
                               aria-label={`Chấm công ${employee.name}`}
                               onClick={() =>
-                                show({ type: "attendance", employee })
+                                show({ type: "attendance", employee, date })
                               }
                             >
                               {record ? "Sửa công" : "Chấm công"}
@@ -760,14 +791,15 @@ export default function PayrollWorkspace({ value, onChange }: Props) {
                     )}
                   </tbody>
                 </table>
-              </div>
+              </div>}
             </section>
             <div className="payroll-note">
               <Info />
               <span>
-                Một công = {data.settings.hoursPerDay} giờ. Không tự tạo ngày
-                công khi chưa nhập dữ liệu. Nhập 0 để xóa số giờ đã ghi. Tháng
-                đã chốt cần mở lại trước khi sửa công.
+                Một công = {attendanceSettings.hoursPerDay} giờ. Ô trống là chưa chấm,
+                khác với nghỉ không lương. Lương tự tính lại khi sửa công.
+                Tháng đã chốt cần mở lại trước khi sửa.
+                {attendanceClosed && <button type="button" className="text-button" onClick={() => { setMonth(attendanceMonth); setTab('payroll'); }}>Đến bảng lương để mở lại</button>}
               </span>
             </div>
           </>
@@ -1098,79 +1130,24 @@ export default function PayrollWorkspace({ value, onChange }: Props) {
             />
           )}
           {modal.type === "attendance" && (
-            <form
-              onSubmit={submitForm((f) => {
+            <AttendanceEditor
+              employee={modal.employee}
+              date={modal.date}
+              record={attendance}
+              hoursPerDay={data.settings.hoursPerDay}
+              error={modalError}
+              onClose={dismiss}
+              onRemove={() => attendance && save(() => removeAttendance(data, attendance.id), 'Đã bỏ ngày chấm công; bảng lương đã cập nhật')}
+              onSave={(values) => {
                 const record: Attendance = {
+                  ...values,
                   id: attendance?.id || newId(),
                   employeeId: modal.employee.id,
-                  date,
-                  regularHours: num(f, "regularHours"),
-                  paidLeaveHours: num(f, "paidLeaveHours"),
-                  overtimeWeekdayHours: num(f, "overtimeWeekdayHours"),
-                  overtimeRestDayHours: num(f, "overtimeRestDayHours"),
-                  overtimeHolidayHours: num(f, "overtimeHolidayHours"),
-                  note: str(f, "note"),
+                  date: modal.date,
                 };
                 save(() => upsertAttendance(data, record), "Đã lưu chấm công");
-              })}
-            >
-              <div className="payroll-dialog-body">
-                <p>
-                  <strong>{modal.employee.name}</strong> ·{" "}
-                  {date.split("-").reverse().join("/")}
-                </p>
-                <div className="payroll-form-grid">
-                  <NumberField
-                    label="Giờ làm bình thường"
-                    name="regularHours"
-                    value={attendance?.regularHours ?? 0}
-                    max={24}
-                  />
-                  <NumberField
-                    label="Giờ nghỉ hưởng lương"
-                    name="paidLeaveHours"
-                    value={attendance?.paidLeaveHours ?? 0}
-                    max={24}
-                  />
-                  <NumberField
-                    label="Giờ tăng ca ngày thường"
-                    name="overtimeWeekdayHours"
-                    value={attendance?.overtimeWeekdayHours ?? 0}
-                    max={24}
-                  />
-                  <NumberField
-                    label="Giờ tăng ca ngày nghỉ"
-                    name="overtimeRestDayHours"
-                    value={attendance?.overtimeRestDayHours ?? 0}
-                    max={24}
-                  />
-                  <NumberField
-                    label="Giờ tăng ca ngày lễ"
-                    name="overtimeHolidayHours"
-                    value={attendance?.overtimeHolidayHours ?? 0}
-                    max={24}
-                  />
-                  <Field label="Ghi chú">
-                    <input
-                      name="note"
-                      maxLength={500}
-                      defaultValue={attendance?.note}
-                      placeholder="Ca làm, lý do nghỉ…"
-                    />
-                  </Field>
-                </div>
-                <p className="payroll-muted">
-                  Để 0 cho mục không phát sinh. Tổng giờ thực làm và tăng ca
-                  không vượt quá 24 giờ/ngày.
-                </p>
-                {modalError && (
-                  <p role="alert" className="payroll-error">
-                    {modalError}
-                  </p>
-                )}
-              </div>
-              <Footer onClose={dismiss} label="Lưu chấm công" />
-            </form>
+              }}
+            />
           )}
           {modal.type === "adjustment" && (
             <form

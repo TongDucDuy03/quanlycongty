@@ -178,6 +178,12 @@ export function upsertAttendance(data: PayrollData, record: Attendance): Payroll
   if (!validatePayrollData(next)) throw new Error('Chấm công không hợp lệ: kiểm tra ngày vào/nghỉ việc, giờ công chuẩn và tổng giờ tối đa 24 giờ/ngày.')
   return next
 }
+export function removeAttendance(data: PayrollData, id: string): PayrollData {
+  const record = data.attendance.find(v => v.id === id)
+  if (!record) throw new Error('Không tìm thấy ngày chấm công cần bỏ. Hãy tải lại dữ liệu và kiểm tra.')
+  if (isPayrollClosed(data, record.date.slice(0, 7))) throw new Error('Tháng này đã khóa. Mở khóa bảng lương trước khi sửa chấm công.')
+  return { ...data, attendance: data.attendance.filter(v => v.id !== id) }
+}
 export function upsertAdjustment(data: PayrollData, record: PayrollAdjustment): PayrollData {
   if (isPayrollClosed(data, record.month)) throw new Error('Tháng này đã khóa. Mở khóa bảng lương trước khi sửa thu nhập/khấu trừ.')
   const original = data.adjustments.find(v => v.id === record.id)

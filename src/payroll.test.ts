@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   calculatePayroll, closePayroll, createEmptyPayroll, createPayrollSeed, isPayrollClosed, payrollToCSV,
-  reopenPayroll, updatePayrollSettings, upsertAdjustment, upsertAllowanceType, upsertAttendance, upsertEmployee, validatePayrollData,
+  reopenPayroll, removeAttendance, updatePayrollSettings, upsertAdjustment, upsertAllowanceType, upsertAttendance, upsertEmployee, validatePayrollData,
   type Attendance, type PayrollData,
 } from './payroll'
 
@@ -65,6 +65,23 @@ describe('payroll formulas', () => {
 })
 
 describe('locked payroll and updates', () => {
+  it('removes only the mistaken day and recalculates wages, overtime and daily allowances without changing the original', () => {
+    const data = fixture()
+    data.attendance = [attendance('2026-10-01', { overtimeWeekdayHours: 2 }), attendance('2026-10-02', { regularHours: 4 })]
+    const next = removeAttendance(data, 'att-2026-10-01')
+    expect(data.attendance).toHaveLength(2)
+    expect(next.attendance).toEqual([data.attendance[1]])
+    expect(calculatePayroll(next, '2026-10')[0]).toMatchObject({ paidDays: .5, ordinaryPay: 500_000, overtimePay: 0, allowancePay: 315_000 })
+    expect(next.employees).toEqual(data.employees)
+  })
+  it('protects closed attendance from removal and allows correction after reopening', () => {
+    const data = upsertAttendance(fixture(), attendance('2026-10-01'))
+    const closed = closePayroll(data, '2026-10')
+    expect(() => removeAttendance(closed, data.attendance[0].id)).toThrow(/khóa/)
+    expect(closed.attendance).toHaveLength(1)
+    expect(removeAttendance(reopenPayroll(closed, '2026-10'), data.attendance[0].id).attendance).toHaveLength(0)
+    expect(() => removeAttendance(data, 'missing-record')).toThrow(/Không tìm thấy/)
+  })
   it('freezes a historical row/settings independently of later salary, names and rules', () => {
     const data = fixture()
     data.attendance = [attendance('2026-10-01')]
