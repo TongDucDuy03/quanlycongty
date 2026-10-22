@@ -5,17 +5,58 @@ import { validateData } from './domain'
 import { loadSheets, SheetsError } from './sheets'
 import { LEGACY_SHEETS_SYNC_KEY, readSheetsCheckpoint, snapshotDigest, writeSheetsCheckpoint } from './sheets-sync'
 import { downloadFile } from './storage'
-import { companyAuthenticate, forgetCompanySession, readCompanySession, saveCompanySession, type CompanySession } from './company-auth'
+import { changeCompanyPassword, companyAuthenticate, forgetCompanySession, readCompanySession, saveCompanySession, type CompanySession } from './company-auth'
 import { companyEndpoint, companyName, COMPANY_AUTH_EVENT, COMPANY_DATA_KEY, COMPANY_OWNER_KEY, COMPANY_LOGOUT_KEY, COMPANY_SESSION_KEY, COMPANY_SYNC_KEY, setCompanyToken } from './company-config'
 import './company.css'
 
-interface Account { username: string; logout: () => void }
+interface Account { username: string; logout: () => void; changePassword: (currentPassword: string, newPassword: string) => Promise<void>; reauthenticate: () => void }
 const CompanyContext = createContext<Account | null>(null)
 export function useCompanyAccount() { return useContext(CompanyContext) }
 export function CompanyAccount() {
   const account = useCompanyAccount()
+  const [editing, setEditing] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [uncertain, setUncertain] = useState(false)
+  const currentField = useRef<HTMLInputElement>(null)
+  const mounted = useRef(false)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+  useEffect(() => { if (editing) currentField.current?.focus() }, [editing])
+  function cancel() { setCurrentPassword(''); setNewPassword(''); setConfirmation(''); setError(''); setUncertain(false); setEditing(false) }
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
+    if (!account || busy) return
+    setError(''); setUncertain(false)
+    if (currentPassword.length < 12 || currentPassword.length > 128 || newPassword.length < 12 || newPassword.length > 128) { setError('Mật khẩu cần có từ 12 đến 128 ký tự.'); return }
+    if (newPassword === currentPassword) { setError('Mật khẩu mới phải khác mật khẩu hiện tại.'); return }
+    if (newPassword !== confirmation) { setError('Xác nhận mật khẩu mới chưa khớp.'); return }
+    setBusy(true)
+    try {
+      await account.changePassword(currentPassword, newPassword)
+      if (mounted.current) cancel()
+    } catch (failure) {
+      if (!mounted.current) return
+      setError(failure instanceof Error ? failure.message : 'Chưa đổi được mật khẩu. Vui lòng thử lại.')
+      setUncertain(failure instanceof SheetsError && failure.code === 'PASSWORD_CHANGE_UNCERTAIN')
+    } finally { if (mounted.current) setBusy(false) }
+  }
   if (!account) return null
-  return <section className="card settings-card"><h2>Tài khoản công ty</h2><p>Đang đăng nhập: <strong>{account.username}</strong>. Mở cùng đường link trên điện thoại hoặc máy tính và đăng nhập để dùng chung dữ liệu.</p><button className="button secondary" onClick={account.logout}><LogOut size={16} />Đăng xuất khỏi thiết bị</button></section>
+  return <section className="card settings-card company-account"><h2>Tài khoản công ty</h2><p>Đang đăng nhập: <strong>{account.username}</strong>. Mở cùng đường link trên điện thoại hoặc máy tính và đăng nhập để dùng chung dữ liệu.</p>
+    <div className="button-row"><button className="button secondary" type="button" aria-expanded={editing} aria-controls="company-password-form" disabled={busy} onClick={() => editing ? cancel() : setEditing(true)}><LockKeyhole size={16} />Đổi mật khẩu</button><button className="button secondary" type="button" onClick={account.logout} disabled={busy}><LogOut size={16} />Đăng xuất khỏi thiết bị</button></div>
+    {editing && <form id="company-password-form" className="company-password-form" onSubmit={event => { void submit(event) }} aria-busy={busy}>
+      <p id="company-password-help">Đặt mật khẩu của riêng bạn, từ 12 đến 128 ký tự. Sau khi đổi, mọi thiết bị cần đăng nhập lại. Dữ liệu và thay đổi chưa đồng bộ vẫn được giữ.</p>
+      <input type="text" name="username" value={account.username} autoComplete="username" readOnly hidden />
+      <label htmlFor="company-current-password">Mật khẩu hiện tại</label><input ref={currentField} id="company-current-password" name="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} required minLength={12} maxLength={128} disabled={busy} aria-describedby="company-password-help company-password-feedback" />
+      <label htmlFor="company-new-password">Mật khẩu mới</label><input id="company-new-password" name="new-password" type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} required minLength={12} maxLength={128} disabled={busy} aria-describedby="company-password-help company-password-feedback" />
+      <label htmlFor="company-confirm-password">Xác nhận mật khẩu mới</label><input id="company-confirm-password" name="confirm-password" type="password" autoComplete="new-password" value={confirmation} onChange={event => setConfirmation(event.target.value)} required minLength={12} maxLength={128} disabled={busy} aria-describedby="company-password-feedback" />
+      <p id="company-password-feedback" role="status" aria-live="polite" className="company-password-feedback">{busy ? 'Đang đổi mật khẩu…' : error}</p>
+      <div className="button-row"><button className="button primary" type="submit" disabled={busy}>Lưu mật khẩu mới</button><button className="button secondary" type="button" onClick={cancel} disabled={busy}>Hủy</button></div>
+      {uncertain && <button className="text-button" type="button" onClick={account.reauthenticate}>Đăng nhập lại để kiểm tra</button>}
+    </form>}
+  </section>
 }
 
 export default function CompanyGate({ children }: { children: ReactNode }) {
@@ -36,6 +77,27 @@ export default function CompanyGate({ children }: { children: ReactNode }) {
     setPassword('')
     setBusy(false)
     setMessage(messageText)
+  }
+
+  function requireLogin(messageText: string) {
+    lock(messageText)
+    try { forgetCompanySession() } catch { /* Server also enforces revoked sessions. */ }
+    // Also notify tabs whose session lives only in sessionStorage.
+    try { localStorage.setItem(COMPANY_LOGOUT_KEY, `${Date.now()}-${Math.random()}`) } catch { /* Other tabs will learn of revocation on their next request. */ }
+  }
+
+  async function changePassword(currentPassword: string, newPassword: string) {
+    const current = sessionRef.current
+    if (!current) throw new SheetsError('SESSION_EXPIRED', 'Vui lòng đăng nhập lại để đổi mật khẩu.')
+    const run = sequence.current
+    try {
+      await changeCompanyPassword(current.token, currentPassword, newPassword)
+      if (run !== sequence.current || sessionRef.current?.token !== current.token) return
+      requireLogin('Đã đổi mật khẩu. Đăng nhập bằng mật khẩu mới để tiếp tục. Các thiết bị khác cũng cần đăng nhập lại; dữ liệu chưa đồng bộ vẫn được giữ.')
+    } catch (error) {
+      if (run === sequence.current && sessionRef.current?.token === current.token && error instanceof SheetsError && ['AUTH_FAILED', 'SESSION_EXPIRED', 'UNAUTHORIZED'].includes(error.code)) window.dispatchEvent(new Event(COMPANY_AUTH_EVENT))
+      throw error
+    }
   }
 
   async function activate(next: CompanySession, run: number, shouldRemember: boolean, migrate = false) {
@@ -183,7 +245,7 @@ export default function CompanyGate({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer)
   }, [session])
 
-  if (session) return <CompanyContext.Provider value={{ username: session.username, logout: () => { void logout() } }}>{children}</CompanyContext.Provider>
+  if (session) return <CompanyContext.Provider value={{ username: session.username, logout: () => { void logout() }, changePassword, reauthenticate: () => requireLogin('Đăng nhập lại và thử mật khẩu mới trước để kiểm tra kết quả đổi mật khẩu. Dữ liệu chưa đồng bộ vẫn được giữ.') }}>{children}</CompanyContext.Provider>
   return <main className="company-entry"><section className="company-login" aria-labelledby="company-title">
     <div className="company-emblem"><Building2 size={30} aria-hidden="true" /></div>
     <p className="company-eyebrow">KHÔNG GIAN LÀM VIỆC CHUNG</p><h1 id="company-title">{companyName}</h1>

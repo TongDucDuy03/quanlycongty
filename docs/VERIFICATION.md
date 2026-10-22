@@ -2,6 +2,12 @@
 
 Ngày: 22/10/2026. Thư mục dự án: `D:\quản lý công ty`. Ban đầu thư mục trống, không có mã nguồn hoặc Git remote. Nhóm diey-team gồm nghiên cứu, kiến trúc, triển khai nghiệp vụ, QA độc lập và review độc lập. Lead tích hợp và kiểm tra bản cuối.
 
+## Đổi mật khẩu tài khoản quản lý — 22/10/2026
+
+- QA độc lập: **117/117 unit tests**, gồm 30 kiểm thử backend; **24 trường hợp tài khoản E2E** trên desktop/mobile (lượt 22 ca và lượt bổ sung 2 ca mất phản hồi). Build production và `verify:dist` đạt, form điện thoại đã kiểm tra trực quan.
+- Đổi mật khẩu yêu cầu phiên ký và mật khẩu hiện tại; áp dụng giới hạn thử, kiểm tra mật khẩu mới, đổi salt/hash/version bằng một lần ghi. Mọi phiên cũ hết hiệu lực. Load/save kiểm tra lại phiên sau khi lấy khóa để chặn yêu cầu đã xếp hàng trước lúc đổi.
+- Kiểm tra xác nhận không khớp, mật khẩu hiện tại sai, mất phản hồi, đăng nhập bằng mật khẩu mới và giữ dữ liệu chưa đồng bộ. Các lần đổi thành công chạy trên backend giả lập, không thay mật khẩu thật của người dùng.
+
 ## Google Sheet cố định và đăng nhập công ty — 22/10/2026
 
 - QA độc lập: **110/110 unit tests**, **64/64 E2E** (48 hồi quy và 16 đăng nhập công ty trên desktop/mobile), build production và kiểm tra bản build dưới đường dẫn con đều đạt.

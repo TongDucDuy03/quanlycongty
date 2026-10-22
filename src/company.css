@@ -14,3 +14,9 @@
 .company-message { min-height:24px; font-size:14px; }
 .company-login small { display:block; line-height:1.6; color:var(--muted, #657482); margin-top:20px; }
 @media(max-width:480px) { .company-login { padding:26px 22px; border-radius:18px; } }
+.company-password-form { display:grid; gap:10px; margin-top:22px; padding-top:18px; border-top:1px solid var(--border); }
+.company-password-form label { font-size:13px; font-weight:600; }
+.company-password-form input:not([hidden]) { width:100%; min-width:0; min-height:44px; padding:10px 12px; font-size:16px; color:var(--text); background:var(--surface-alt); border:1px solid var(--border); border-radius:9px; }
+.company-password-form p { margin:0 0 8px; line-height:1.6; }
+.company-password-form .company-password-feedback { min-height:20px; color:var(--red); }
+.company-account .button-row { flex-wrap:wrap; }

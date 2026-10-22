@@ -43,3 +43,35 @@ export async function companyAuthenticate(body: { action: 'login'; username: str
     throw new Error(controller.signal.aborted ? 'Kết nối quá thời gian chờ. Vui lòng thử lại.' : 'Chưa kết nối được dịch vụ công ty. Kiểm tra mạng rồi thử lại.')
   } finally { clearTimeout(timeout) }
 }
+
+/** A lost response may follow a committed password rotation; never retry it automatically. */
+export async function changeCompanyPassword(token: string, currentPassword: string, newPassword: string): Promise<void> {
+  if (!validateSheetsEndpoint(companyEndpoint)) throw new SheetsError('CONFIG', 'Địa chỉ dịch vụ chưa được cấu hình đúng.')
+  if (currentPassword.length < 12 || currentPassword.length > 128 || newPassword.length < 12 || newPassword.length > 128 || currentPassword === newPassword) {
+    throw new SheetsError('INVALID_DATA', 'Mật khẩu cần có từ 12 đến 128 ký tự. Mật khẩu mới phải khác mật khẩu hiện tại.')
+  }
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), SHEETS_TIMEOUT_MS)
+  try {
+    const response = await fetch(companyEndpoint, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, credentials: 'omit', redirect: 'follow', signal: controller.signal, body: JSON.stringify({ action: 'changePassword', token, currentPassword, newPassword }) })
+    if (!response.ok) throw new Error('http')
+    const result = await response.json()
+    if (result?.ok === true) return
+    const messages: Record<string, string> = {
+      CURRENT_PASSWORD_INVALID: 'Mật khẩu hiện tại chưa đúng. Vui lòng kiểm tra lại.',
+      INVALID_DATA: 'Mật khẩu cần có từ 12 đến 128 ký tự. Mật khẩu mới phải khác mật khẩu hiện tại.',
+      RATE_LIMITED: 'Bạn đã thử nhiều lần. Vui lòng chờ ít phút rồi thử lại.',
+      AUTH_FAILED: 'Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại.',
+      SESSION_EXPIRED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      UNAUTHORIZED: 'Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại.',
+      BUSY: 'Dịch vụ đang bận. Vui lòng thử lại sau ít phút.',
+      LOCK_TIMEOUT: 'Dịch vụ đang bận. Vui lòng thử lại sau ít phút.',
+    }
+    const code = typeof result?.code === 'string' && Object.hasOwn(messages, result.code) ? result.code : null
+    if (result?.ok === false && code) throw new SheetsError(code, messages[code])
+    throw new Error('unknown outcome')
+  } catch (error) {
+    if (error instanceof SheetsError) throw error
+    throw new SheetsError('PASSWORD_CHANGE_UNCERTAIN', 'Chưa xác nhận được kết quả đổi mật khẩu. Mật khẩu có thể đã đổi: hãy đăng nhập lại và thử mật khẩu mới trước. Dữ liệu chưa đồng bộ vẫn được giữ trên thiết bị.')
+  } finally { clearTimeout(timeout) }
+}

@@ -11,6 +11,7 @@
 - **Cấu hình lương:** ngày/giờ công chuẩn, hệ số tăng ca, tỷ lệ bảo hiểm và các loại phụ cấp cố định hoặc theo ngày thực làm.
 - **Bảng lương:** tính thu nhập và thực lĩnh, thêm thưởng/tạm ứng/khấu trừ/thuế nhập tay, xem chi tiết, chốt/mở lại kỳ lương và xuất CSV.
 - **Dùng chung trên mọi thiết bị:** Google Sheet được cấu hình cố định cho hệ thống. Máy tính và điện thoại chỉ cần mở cùng đường link, đăng nhập tài khoản quản lý; không nhập URL Sheet hoặc khóa kết nối. Có lựa chọn ghi nhớ phiên đăng nhập 30 ngày trên thiết bị cá nhân.
+- **Đổi mật khẩu:** đổi ngay trong Cài đặt bằng mật khẩu hiện tại; xác nhận mật khẩu mới và thu hồi các phiên cũ. Đăng nhập lại để tiếp tục, giữ nguyên dữ liệu và thay đổi chờ đồng bộ.
 - **Google Sheets:** tự lưu sau thay đổi, nhận bản mới khi quay lại ứng dụng và kiểm tra định kỳ; giữ cả chấm công/kỳ lương đã chốt, chặn ghi đè khi hai máy cùng sửa. Chờ trạng thái “Đã đồng bộ” trước khi chuyển thiết bị. Sửa dữ liệu trong ứng dụng; tab báo cáo trên Sheet chỉ dùng để xem.
 - **Sao lưu & phiên đăng nhập:** bản lưu trên thiết bị, xuất/khôi phục JSON và xuất CSV. Phiên hết hạn vẫn giữ thay đổi chưa đồng bộ để tiếp tục sau khi đăng nhập lại. Đăng xuất xóa phiên và dữ liệu công ty trên thiết bị; nếu còn thay đổi chưa đồng bộ, hỏi xác nhận và tải bản sao JSON trước khi xóa. Mật khẩu và phiên đăng nhập không nằm trong bản sao JSON.
 

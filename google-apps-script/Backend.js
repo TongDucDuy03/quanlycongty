@@ -51,11 +51,16 @@ function doPost(e) {
     var request;
     try { request = JSON.parse(raw); } catch (_) { fail_('INVALID_DATA', 'Invalid JSON request.'); }
     if (!object_(request)) fail_('INVALID_DATA', 'Invalid request.');
-    if (['login', 'configureLogin', 'exchange'].indexOf(request.action) !== -1) {
+    if (['login', 'configureLogin', 'exchange', 'changePassword'].indexOf(request.action) !== -1) {
       if (raw.length > 2000) fail_('LIMIT', 'Login request is too large.');
-      if (request.action !== 'login' && !sameToken_(request.token, config.token)) fail_('AUTH_FAILED', 'Invalid credentials.');
+      if (request.action === 'changePassword') authorize_(request.token, config, true);
+      else if (request.action !== 'login' && !sameToken_(request.token, config.token)) fail_('AUTH_FAILED', 'Invalid credentials.');
       lock = LockService.getScriptLock();
       if (!lock.tryLock(10000)) fail_('BUSY', 'Another operation is running. Try again shortly.');
+      if (request.action === 'changePassword') {
+        authorize_(request.token, config_(), true);
+        return json_(changePassword_(request));
+      }
       return json_(accountRequest_(request, config));
     }
     authorize_(request.token, config);
@@ -69,6 +74,9 @@ function doPost(e) {
     }
     lock = LockService.getScriptLock();
     if (!lock.tryLock(10000)) fail_('BUSY', 'Another operation is running. Try again shortly.');
+    // An account update may revoke this session while this request waits.
+    config = config_();
+    authorize_(request.token, config);
     var ss = SpreadsheetApp.openById(config.spreadsheetId);
     var current = readCommitted_(ss, config);
     if (request.action === 'load') return json_({ ok: true, revision: current.revision, data: current.data, spreadsheetUrl: ss.getUrl() });
@@ -93,7 +101,7 @@ function doPost(e) {
     catch (_) { result.warning = 'Data saved. Some report tabs could not be refreshed; load from the app remains authoritative.'; }
     return json_(result);
   } catch (error) {
-    var codes = ['UNAUTHORIZED', 'CONFLICT', 'INVALID_DATA', 'LIMIT', 'BUSY', 'CONFIG', 'INTERNAL', 'AUTH_FAILED', 'RATE_LIMITED', 'LOGIN_NOT_CONFIGURED', 'LOGIN_ALREADY_CONFIGURED', 'SESSION_EXPIRED'];
+    var codes = ['UNAUTHORIZED', 'CONFLICT', 'INVALID_DATA', 'LIMIT', 'BUSY', 'CONFIG', 'INTERNAL', 'AUTH_FAILED', 'RATE_LIMITED', 'LOGIN_NOT_CONFIGURED', 'LOGIN_ALREADY_CONFIGURED', 'SESSION_EXPIRED', 'CURRENT_PASSWORD_INVALID'];
     var known = error && codes.indexOf(error.code) !== -1;
     return json_({ ok: false, code: known ? error.code : 'INTERNAL', message: known ? error.message : 'Google Sheets operation failed. Check the deployment and try loading before saving again.' });
   } finally { if (lock && lock.hasLock()) lock.releaseLock(); }
@@ -180,6 +188,13 @@ function accountRequest_(request, config) {
   }
   if (!account) fail_('LOGIN_NOT_CONFIGURED', 'The manager account has not been configured yet.');
   if (request.action === 'exchange') return issueSession_(account, config);
+  var suppliedUsername = typeof request.username === 'string' ? request.username.trim().toLowerCase() : '';
+  verifyCredentials_(request.password, suppliedUsername, account);
+  return issueSession_(account, config);
+}
+function verifyCredentials_(password, username, account, failureCode) {
+  // Login and password changes share one atomic rate limit under ScriptLock.
+  var props = PropertiesService.getScriptProperties();
   var now = Date.now();
   var attempts;
   try { attempts = JSON.parse(props.getProperty('QLCT_LOGIN_ATTEMPTS') || 'null'); } catch (_) { attempts = null; }
@@ -188,13 +203,23 @@ function accountRequest_(request, config) {
   // Record first, so an interrupted/aborted KDF cannot bypass the attempt limit.
   attempts.count++;
   props.setProperty('QLCT_LOGIN_ATTEMPTS', JSON.stringify(attempts));
-  var validPassword = typeof request.password === 'string' && request.password.length >= 12 && request.password.length <= 128;
-  var hash = validPassword ? passwordHash_(request.password, account.salt) : '';
-  var suppliedUsername = typeof request.username === 'string' ? request.username.trim().toLowerCase() : '';
+  var validPassword = typeof password === 'string' && password.length >= 12 && password.length <= 128;
+  var hash = validPassword ? passwordHash_(password, account.salt) : '';
   var validHash = sameToken_(hash, account.hash);
-  if (!validHash || !sameToken_(suppliedUsername, account.username)) fail_('AUTH_FAILED', 'Invalid username or password.');
+  if (!validHash || !sameToken_(username, account.username)) fail_(failureCode || 'AUTH_FAILED', 'Invalid username or password.');
   props.setProperty('QLCT_LOGIN_ATTEMPTS', JSON.stringify({ count: 0, until: now + 15 * 60 * 1000 }));
-  return issueSession_(account, config);
+}
+function changePassword_(request) {
+  // Caller holds ScriptLock and has freshly verified a signed session.
+  if (typeof request.newPassword !== 'string' || request.newPassword.length < 12 || request.newPassword.length > 128 || request.newPassword === request.currentPassword) fail_('INVALID_DATA', 'Use a different password of 12-128 characters.');
+  var account = account_();
+  if (!account) fail_('LOGIN_NOT_CONFIGURED', 'The manager account has not been configured yet.');
+  verifyCredentials_(request.currentPassword, account.username, account, 'CURRENT_PASSWORD_INVALID');
+  var salt = Utilities.getUuid().replace(/-/g, '');
+  var replacement = { username: account.username, salt: salt, hash: passwordHash_(request.newPassword, salt), version: Utilities.getUuid().replace(/-/g, '').slice(0, 16) };
+  // One property write changes the verifier and invalidates ALL old sessions.
+  PropertiesService.getScriptProperties().setProperty('QLCT_LOGIN', JSON.stringify(replacement));
+  return { ok: true };
 }
 function sessionMac_(payload, config) {
   return authHex_(QLCTCrypto.hmac(QLCTCrypto.sha256, authBytes_(config.token), authBytes_('QLCT session v1:' + payload)));
@@ -204,8 +229,11 @@ function issueSession_(account, config) {
   var payload = Utilities.base64Encode(JSON.stringify({ u: account.username, v: account.version, e: expiresAt, n: Utilities.getUuid().replace(/-/g, '').slice(0, 16) }), Utilities.Charset.UTF_8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   return { ok: true, token: 'qlct1.' + payload + '.' + sessionMac_(payload, config), expiresAt: expiresAt, username: account.username };
 }
-function authorize_(token, config) {
-  if (sameToken_(token, config.token)) return;
+function authorize_(token, config, sessionOnly) {
+  if (sameToken_(token, config.token)) {
+    if (sessionOnly) fail_('UNAUTHORIZED', 'A signed-in manager session is required.');
+    return;
+  }
   if (typeof token !== 'string' || token.length > 256 || !/^qlct1\.[A-Za-z0-9_-]+\.[a-f0-9]{64}$/.test(token)) fail_('UNAUTHORIZED', 'Invalid connection key or session.');
   var pieces = token.split('.');
   if (!sameToken_(pieces[2], sessionMac_(pieces[1], config))) fail_('AUTH_FAILED', 'Invalid session. Please sign in again.');

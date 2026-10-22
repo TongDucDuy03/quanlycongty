@@ -6,31 +6,40 @@ const endpoint = 'https://script.google.com/macros/s/test-deployment/exec'
 const master = 'qa-legacy-private-key-never-publish-1234567890'
 const username = 'quanly'
 const password = 'qa-private-password-12345'
+const newPassword = 'qa-replacement-password-67890'
 const spreadsheetUrl = 'https://docs.google.com/spreadsheets/d/test-sheet/edit'
 const DATA = 'xuong-viet.company.data.v1'
 const SESSION = 'xuong-viet.company.session.v1'
-type Body = { action: string; token?: string; username?: string; password?: string; expectedRevision?: number; data?: any }
+type Body = { action: string; token?: string; username?: string; password?: string; currentPassword?: string; newPassword?: string; expectedRevision?: number; data?: any }
 const stored = (page: Page) => page.evaluate(key => JSON.parse(localStorage.getItem(key) || 'null'), DATA)
 
 function server() {
   const data = createSeedData()
   data.customers[0].name = 'Khách công ty riêng QA'
   data.payroll.employees[0].name = 'Nhân viên công ty riêng QA'
-  const state = { data, revision: 7, expire: false, offline: false }
+  const state = { data, revision: 7, expire: false, offline: false, password, losePasswordResponse: false }
   const requests: Body[] = []
   const tokens = new Set<string>()
+  let nextToken = 0
   const respond = (body: Body): object | 'offline' => {
     requests.push(structuredClone(body))
     if (state.offline) return 'offline'
     if (body.action === 'login' || body.action === 'exchange') {
-      if (body.action === 'login' && (body.username !== username || body.password !== password) || body.action === 'exchange' && body.token !== master) return { ok: false, code: 'AUTH_FAILED' }
-      const token = `qlct1.session_${tokens.size}.` + 'a'.repeat(64)
+      if (body.action === 'login' && (body.username !== username || body.password !== state.password) || body.action === 'exchange' && body.token !== master) return { ok: false, code: 'AUTH_FAILED' }
+      const token = `qlct1.session_${nextToken++}.` + 'a'.repeat(64)
       tokens.add(token)
       state.expire = false
       return { ok: true, token, expiresAt: Date.now() + 30 * 86400000, username }
     }
-    if (!tokens.has(body.token ?? '')) return { ok: false, code: 'UNAUTHORIZED' }
+    if (!tokens.has(body.token ?? '')) return { ok: false, code: 'SESSION_EXPIRED' }
     if (state.expire) return { ok: false, code: 'SESSION_EXPIRED' }
+    if (body.action === 'changePassword') {
+      if (body.currentPassword !== state.password) return { ok: false, code: 'CURRENT_PASSWORD_INVALID' }
+      if (!body.newPassword || body.newPassword.length < 12 || body.newPassword.length > 128 || body.newPassword === state.password) return { ok: false, code: 'INVALID_DATA' }
+      state.password = body.newPassword
+      tokens.clear()
+      return { ok: true }
+    }
     if (body.action === 'load') return { ok: true, data: state.data, revision: state.revision, spreadsheetUrl }
     if (body.action === 'save') {
       if (body.expectedRevision !== state.revision) return { ok: false, code: 'CONFLICT' }
@@ -50,15 +59,16 @@ function server() {
       await intercept?.(body)
       const response = respond(body)
       if (response === 'offline') return route.abort('failed')
+      if (body.action === 'changePassword' && state.losePasswordResponse) { state.losePasswordResponse = false; return route.abort('failed') }
       return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(response) })
     })
   }
   return { state, requests, install }
 }
 
-async function login(page: Page) {
+async function login(page: Page, loginPassword = password) {
   await page.getByLabel('Tên đăng nhập', { exact: true }).fill(username)
-  await page.getByLabel('Mật khẩu', { exact: true }).fill(password)
+  await page.getByLabel('Mật khẩu', { exact: true }).fill(loginPassword)
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Đăng nhập', exact: true })).toHaveCount(0)
 }
@@ -245,4 +255,144 @@ test('another company cache is never exposed or uploaded after successful login'
   await expect(page.getByText('Dữ liệu riêng công ty khác QA', { exact: true })).toHaveCount(0)
   expect(cloud.requests.filter(body => body.action === 'save')).toHaveLength(0)
   expect(await stored(page)).toEqual(other)
+})
+
+async function openPasswordForm(page: Page, current = password, next = newPassword, confirm = next) {
+  await page.evaluate(() => { location.hash = '#settings' })
+  await page.getByRole('button', { name: 'Đổi mật khẩu', exact: true }).click()
+  const form = page.locator('#company-password-form')
+  await form.getByLabel('Mật khẩu hiện tại', { exact: true }).fill(current)
+  await form.getByLabel('Mật khẩu mới', { exact: true }).fill(next)
+  await form.getByLabel('Xác nhận mật khẩu mới', { exact: true }).fill(confirm)
+  return form
+}
+
+test('password validation and wrong current password preserve the active account and data', async ({ page, context }, testInfo) => {
+  const cloud = server()
+  await cloud.install(context)
+  await page.goto('/#settings')
+  await login(page)
+  await ready(page)
+  const initial = await stored(page)
+  const form = await openPasswordForm(page, password, newPassword, 'qa-confirmation-does-not-match')
+  await form.getByRole('button', { name: 'Lưu mật khẩu mới', exact: true }).click()
+  await expect(form.getByRole('status')).toContainText(/khớp|giống/)
+  expect(cloud.requests.filter(body => body.action === 'changePassword')).toHaveLength(0)
+  await form.getByLabel('Mật khẩu mới', { exact: true }).fill(password)
+  await form.getByLabel('Xác nhận mật khẩu mới', { exact: true }).fill(password)
+  await form.getByRole('button', { name: 'Lưu mật khẩu mới', exact: true }).click()
+  await expect(form.getByRole('status')).toContainText(/khác/)
+  expect(cloud.requests.filter(body => body.action === 'changePassword')).toHaveLength(0)
+  await form.getByLabel('Mật khẩu mới', { exact: true }).fill('short')
+  await form.getByLabel('Xác nhận mật khẩu mới', { exact: true }).fill('short')
+  await form.getByRole('button', { name: 'Lưu mật khẩu mới', exact: true }).click()
+  expect(cloud.requests.filter(body => body.action === 'changePassword')).toHaveLength(0)
+  await form.getByLabel('Mật khẩu hiện tại', { exact: true }).fill('qa-wrong-current-password')
+  await form.getByLabel('Mật khẩu mới', { exact: true }).fill(newPassword)
+  await form.getByLabel('Xác nhận mật khẩu mới', { exact: true }).fill(newPassword)
+  await form.getByRole('button', { name: 'Lưu mật khẩu mới', exact: true }).click()
+  await expect(form.getByRole('status')).toContainText(/hiện tại.*chưa đúng/)
+  expect(cloud.requests.filter(body => body.action === 'changePassword')).toHaveLength(1)
+  expect(cloud.state.password).toBe(password)
+  expect(await stored(page)).toEqual(initial)
+  await expect(page.getByRole('button', { name: 'Đăng xuất khỏi thiết bị', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+  await page.screenshot({ path: testInfo.outputPath('change-password-validation.png'), fullPage: true })
+  const storage = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }))
+  expect(storage).not.toContain(password)
+  expect(storage).not.toContain(newPassword)
+  await form.getByRole('button', { name: 'Hủy', exact: true }).click()
+  await expect(form).toHaveCount(0)
+})
+
+test('password change revokes other devices, keeps data, rejects old password and accepts the new password', async ({ page, context, browser }) => {
+  const cloud = server()
+  await cloud.install(context)
+  await page.goto('/#settings')
+  await login(page)
+  await ready(page)
+  const initial = await stored(page)
+  const oldSession = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).token, SESSION)
+  const otherContext = await browser.newContext()
+  try {
+    await cloud.install(otherContext)
+    const other = await otherContext.newPage()
+    await other.goto('http://127.0.0.1:4175/#customers')
+    await login(other)
+    await ready(other)
+    const form = await openPasswordForm(page)
+    await form.getByRole('button', { name: 'Lưu mật khẩu mới', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Đăng nhập', exact: true })).toBeVisible()
+    await expect(page.locator('.company-message')).toContainText('Đã đổi mật khẩu')
+    expect(await stored(page)).toEqual(initial)
+    expect(await page.evaluate(key => localStorage.getItem(key), SESSION)).toBeNull()
+    const changes = cloud.requests.filter(body => body.action === 'changePassword')
+    expect(changes).toHaveLength(1)
+    expect(changes[0].token).toBe(oldSession)
+    expect(changes[0].token).not.toBe(master)
+    expect(cloud.state.revision).toBe(7)
+    await other.evaluate(() => window.dispatchEvent(new Event('focus')))
+    await expect(other.getByRole('button', { name: 'Đăng nhập', exact: true })).toBeVisible()
+    expect(await stored(other)).toEqual(initial)
+    await page.getByLabel('Tên đăng nhập', { exact: true }).fill(username)
+    await page.getByLabel('Mật khẩu', { exact: true }).fill(password)
+    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
+    await expect(page.locator('.company-message')).toContainText('không đúng')
+    await login(page, newPassword)
+    await ready(page)
+    await login(other, newPassword)
+    await expect(other.getByText('Khách công ty riêng QA', { exact: true })).toBeVisible()
+    expect(await stored(page)).toEqual(initial)
+    expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).token, SESSION)).not.toBe(oldSession)
+  } finally { await otherContext.close() }
+})
+
+test('password rotation during a pending save keeps edits through reauthentication and rejects the old save', async ({ page, context }) => {
+  const cloud = server()
+  let saveStarted = false
+  let finish!: () => void
+  const gate = new Promise<void>(resolve => { finish = resolve })
+  await cloud.install(context, async body => {
+    if (body.action === 'save' && !saveStarted) { saveStarted = true; await gate }
+  })
+  await page.goto('/#customers')
+  await login(page)
+  await ready(page)
+  await addCustomer(page, 'Khách giữ lại khi đổi mật khẩu QA')
+  await expect.poll(() => saveStarted, { timeout: 10000 }).toBe(true)
+  const pending = await stored(page)
+  const form = await openPasswordForm(page)
+  await form.getByRole('button', { name: 'Lưu mật khẩu mới', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Đăng nhập', exact: true })).toBeVisible()
+  expect(await stored(page)).toEqual(pending)
+  expect(await page.evaluate(key => localStorage.getItem(key), 'xuong-viet.company.sync.v1')).not.toBeNull()
+  finish()
+  await expect.poll(() => cloud.requests.filter(body => body.action === 'save').length).toBe(1)
+  expect(cloud.state.revision).toBe(7)
+  await login(page, newPassword)
+  await expect.poll(() => cloud.state.data.customers.some(row => row.name === 'Khách giữ lại khi đổi mật khẩu QA'), { timeout: 10000 }).toBe(true)
+  expect(cloud.state.revision).toBe(8)
+  expect(await stored(page)).toEqual(pending)
+})
+
+test('a lost password-change response offers safe reauthentication without retrying the mutation', async ({ page, context }) => {
+  const cloud = server()
+  await cloud.install(context)
+  await page.goto('/#settings')
+  await login(page)
+  await ready(page)
+  const initial = await stored(page)
+  cloud.state.losePasswordResponse = true
+  const form = await openPasswordForm(page)
+  await form.getByRole('button', { name: 'Lưu mật khẩu mới', exact: true }).click()
+  await expect(form.getByRole('status')).toContainText(/mật khẩu mới trước/)
+  expect(cloud.state.password).toBe(newPassword)
+  expect(cloud.requests.filter(body => body.action === 'changePassword')).toHaveLength(1)
+  await form.getByRole('button', { name: 'Đăng nhập lại để kiểm tra', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Đăng nhập', exact: true })).toBeVisible()
+  expect(await stored(page)).toEqual(initial)
+  await login(page, newPassword)
+  await ready(page)
+  expect(await stored(page)).toEqual(initial)
+  expect(cloud.requests.filter(body => body.action === 'changePassword')).toHaveLength(1)
 })

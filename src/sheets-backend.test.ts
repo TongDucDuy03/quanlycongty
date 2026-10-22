@@ -16,6 +16,7 @@ function backend() {
   let failReports = false
   let lockCount = 0
   let now = Date.now()
+  let onLock: (() => void) | undefined
   class Sheet {
     values = new Map<string, unknown>()
     rows = 1000
@@ -52,7 +53,7 @@ function backend() {
   const context = {
     Date: class extends Date { static now() { return now } },
     PropertiesService: { getScriptProperties: () => ({ getProperty: (key: string) => properties.get(key) ?? null, setProperty: (key: string, value: string) => properties.set(key, value) }) },
-    LockService: { getScriptLock: () => ({ waitLock: () => { if (busy) throw new Error('busy'); held = true; lockCount++ }, tryLock: () => { if (busy) return false; held = true; lockCount++; return true }, hasLock: () => held, releaseLock: () => { held = false } }) },
+    LockService: { getScriptLock: () => ({ waitLock: () => { if (busy) throw new Error('busy'); held = true; lockCount++ }, tryLock: () => { if (busy) return false; const callback = onLock; onLock = undefined; callback?.(); held = true; lockCount++; return true }, hasLock: () => held, releaseLock: () => { held = false } }) },
     SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet, openById: () => spreadsheet, flush: () => {} },
     Utilities: {
       getUuid: randomUUID,
@@ -73,7 +74,7 @@ function backend() {
   runInNewContext(source, context)
   context.setup()
   const request = (body: Record<string, unknown>) => JSON.parse(context.doPost({ postData: { contents: JSON.stringify({ token: properties.get('QLCT_TOKEN'), ...body }) } }))
-  return { request, properties, sheets, spreadsheet, context, advanceTime: (ms: number) => { now += ms }, setBusy: (v: boolean) => { busy = v }, failWrites: () => { failWrites = true }, failReports: () => { failReports = true }, locks: () => lockCount, held: () => held }
+  return { request, properties, sheets, spreadsheet, context, onNextLock: (callback: () => void) => { onLock = callback }, advanceTime: (ms: number) => { now += ms }, setBusy: (v: boolean) => { busy = v }, failWrites: () => { failWrites = true }, failReports: () => { failReports = true }, locks: () => lockCount, held: () => held }
 }
 
 describe('Apps Script backend (mocked Google services; not a live deployment)', () => {
@@ -271,5 +272,80 @@ describe('manager account and signed sessions (mocked Apps Script V8 without Tex
     expect(session.ok).toBe(true)
     expect(session.token.length).toBeLessThanOrEqual(256)
     expect(b.request({ action: 'load', token: session.token })).toMatchObject({ ok: true, data, revision: 1 })
+  }, 20000)
+  it('changes password without changing business data; revokes every old session and requires the new password', () => {
+    const b = configured(), data = createSeedData()
+    const second = b.request({ action: 'exchange' })
+    b.request({ action: 'save', token: b.session.token, expectedRevision: 0, data })
+    const previous = JSON.parse(b.properties.get('QLCT_LOGIN')!)
+    const commit = b.properties.get('QLCT_COMMIT')
+    const newPassword = 'New-test-only-password-9435'
+    const result = b.request({ action: 'changePassword', token: b.session.token, currentPassword: credentials.password, newPassword })
+    expect(result).toEqual({ ok: true })
+    const account = JSON.parse(b.properties.get('QLCT_LOGIN')!)
+    expect(account.username).toBe(credentials.username)
+    expect(account.salt).not.toBe(previous.salt)
+    expect(account.version).not.toBe(previous.version)
+    expect(account.hash).toBe(pbkdf2Sync(newPassword, account.salt, 600000, 32, 'sha256').toString('hex'))
+    expect(b.properties.get('QLCT_COMMIT')).toBe(commit)
+    for (const token of [b.session.token, second.token]) {
+      expect(b.request({ action: 'load', token })).toMatchObject({ ok: false, code: 'SESSION_EXPIRED' })
+      expect(b.request({ action: 'save', token, expectedRevision: 1, data })).toMatchObject({ ok: false, code: 'SESSION_EXPIRED' })
+    }
+    expect(b.request({ action: 'login', ...credentials })).toMatchObject({ ok: false, code: 'AUTH_FAILED' })
+    const login = b.request({ action: 'login', ...credentials, password: newPassword })
+    expect(login.ok).toBe(true)
+    expect(b.request({ action: 'load', token: login.token })).toMatchObject({ ok: true, data, revision: 1 })
+  }, 30000)
+  it('rejects password changes without a current signed session, including with the installation master', () => {
+    const b = configured()
+    const original = b.properties.get('QLCT_LOGIN')
+    const body = { action: 'changePassword', currentPassword: credentials.password, newPassword: 'New-test-only-password-9435' }
+    expect(b.request(body)).toMatchObject({ ok: false, code: 'UNAUTHORIZED' })
+    expect(b.request({ ...body, token: '' })).toMatchObject({ ok: false, code: 'UNAUTHORIZED' })
+    const forged = b.session.token.slice(0, -1) + (b.session.token.endsWith('a') ? 'b' : 'a')
+    expect(b.request({ ...body, token: forged })).toMatchObject({ ok: false, code: 'AUTH_FAILED' })
+    b.advanceTime(30 * 24 * 60 * 60 * 1000)
+    expect(b.request({ ...body, token: b.session.token })).toMatchObject({ ok: false, code: 'SESSION_EXPIRED' })
+    expect(b.properties.get('QLCT_LOGIN')).toBe(original)
+  }, 20000)
+  it('rejects invalid new passwords and wrong current password while leaving the current session usable', () => {
+    const b = configured()
+    const original = b.properties.get('QLCT_LOGIN')
+    const body = { action: 'changePassword', token: b.session.token, currentPassword: credentials.password }
+    for (const newPassword of [null, 'short', 'x'.repeat(129), credentials.password]) {
+      expect(b.request({ ...body, newPassword })).toMatchObject({ ok: false, code: 'INVALID_DATA' })
+    }
+    expect(b.request({ ...body, currentPassword: 'Wrong-password-9435', newPassword: 'New-test-only-password-9435' })).toMatchObject({ ok: false, code: 'CURRENT_PASSWORD_INVALID' })
+    expect(b.properties.get('QLCT_LOGIN')).toBe(original)
+    expect(b.request({ action: 'load', token: b.session.token })).toMatchObject({ ok: true, revision: 0 })
+    expect(JSON.parse(b.properties.get('QLCT_LOGIN_ATTEMPTS')!).count).toBe(1)
+    expect(b.held()).toBe(false)
+  }, 20000)
+  it('shares password-change attempts with login throttling and does not rotate a rate-limited account', () => {
+    const b = configured()
+    const original = b.properties.get('QLCT_LOGIN')
+    for (let index = 0; index < 4; index++) b.request({ action: 'login', ...credentials, password: 'bad' })
+    const body = { action: 'changePassword', token: b.session.token, newPassword: 'New-test-only-password-9435' }
+    expect(b.request({ ...body, currentPassword: 'bad' })).toMatchObject({ ok: false, code: 'CURRENT_PASSWORD_INVALID' })
+    expect(b.request({ ...body, currentPassword: credentials.password })).toMatchObject({ ok: false, code: 'RATE_LIMITED' })
+    expect(b.request({ action: 'login', ...credentials })).toMatchObject({ ok: false, code: 'RATE_LIMITED' })
+    expect(b.properties.get('QLCT_LOGIN')).toBe(original)
+  }, 20000)
+  it.each(['load', 'save', 'changePassword'])('rechecks %s session after waiting for the script lock', action => {
+    const b = configured(), data = createSeedData()
+    b.request({ action: 'save', expectedRevision: 0, data })
+    const commit = b.properties.get('QLCT_COMMIT')
+    // Simulate a password rotation that completed while this request queued.
+    b.onNextLock(() => {
+      const account = JSON.parse(b.properties.get('QLCT_LOGIN')!)
+      b.properties.set('QLCT_LOGIN', JSON.stringify({ ...account, version: 'f'.repeat(16) }))
+    })
+    const body = action === 'changePassword'
+      ? { currentPassword: credentials.password, newPassword: 'New-test-only-password-9435' }
+      : { expectedRevision: 1, data }
+    expect(b.request({ action, token: b.session.token, ...body })).toMatchObject({ ok: false, code: 'SESSION_EXPIRED' })
+    expect(b.properties.get('QLCT_COMMIT')).toBe(commit)
+    expect(b.held()).toBe(false)
   }, 20000)
 })

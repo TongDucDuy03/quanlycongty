@@ -8,6 +8,8 @@ Sau khi lưu đơn hàng, chấm công hoặc bảng lương, dữ liệu tự g
 
 **Đăng xuất** xóa phiên và bản lưu công ty trên thiết bị. Nếu còn thay đổi chưa đồng bộ, ứng dụng hỏi trước và tải bản sao JSON khi bạn xác nhận. Không dùng tài khoản Google làm mật khẩu ứng dụng. Đây là một tài khoản quản lý chung, chưa có phân quyền nhân viên.
 
+**Đổi mật khẩu:** vào **Cài đặt & dữ liệu → Tài khoản công ty → Đổi mật khẩu**. Nhập mật khẩu hiện tại, mật khẩu mới (12–128 ký tự, khác mật khẩu cũ) và xác nhận lại. Đổi thành công thì đăng nhập lại bằng mật khẩu mới; các phiên cũ trên thiết bị khác cũng hết hiệu lực. Dữ liệu và thay đổi chưa đồng bộ được giữ để tiếp tục sau đăng nhập. Nếu mất mạng khi gửi yêu cầu đổi mật khẩu, thử đăng nhập bằng mật khẩu mới trước vì máy chủ có thể đã đổi xong. Tệp tài khoản bàn giao ban đầu không tự cập nhật; hãy cất mật khẩu mới riêng tư.
+
 Thông tin đăng nhập được bàn giao riêng cho chủ hệ thống, không nằm trong repository hoặc hướng dẫn công khai. Trình duyệt dùng mã phiên có hạn; khóa quản trị Apps Script không được nhúng vào mã nguồn. Trình duyệt cũ đã có kết nối được chuyển sang phiên đăng nhập tự động và bỏ khóa cũ khỏi cấu hình trình duyệt.
 
 ## Dành cho người triển khai một hệ thống mới
