@@ -2557,157 +2557,6 @@ td strong {
   margin: 16px 25px 0;
 }
 
-/* Readable control and table type at normal browser zoom. */
-:root {
-  --muted: #65766f;
-}
-[data-theme="dark"] {
-  --muted: #a4b8ad;
-}
-.nav-item {
-  font-size: 13px;
-}
-.card-header h2 {
-  font-size: 15px;
-}
-.card-header p,
-.page-heading p {
-  font-size: 12px;
-}
-.stat-top {
-  font-size: 12px;
-}
-.stat-sub {
-  font-size: 10px;
-}
-.chart-legend button {
-  font-size: 11px;
-}
-.chart-legend b {
-  font-size: 12px;
-}
-.donut span,
-.card-footer-note,
-.subtle-pill {
-  font-size: 10px;
-}
-.attention-item strong {
-  font-size: 12px;
-}
-.attention-item small {
-  font-size: 10px;
-}
-.table-link,
-.customer-name,
-td {
-  font-size: 12px;
-}
-.cell-sub {
-  font-size: 11px;
-}
-th {
-  font-size: 10px;
-}
-.badge {
-  font-size: 10px;
-}
-.text-button,
-.table-footer {
-  font-size: 11px;
-}
-.welcome-banner p {
-  font-size: 11px;
-}
-.welcome-banner strong {
-  font-size: 14px;
-}
-.welcome-banner button {
-  font-size: 11px;
-}
-.badge.machining {
-  color: #356b55;
-}
-.badge.qc,
-.badge.warning {
-  color: #8b682b;
-}
-.badge.ready {
-  color: #416d85;
-}
-.badge.delivered {
-  color: #456e56;
-}
-.page-footer,
-.breadcrumb,
-.local-indicator {
-  font-size: 10px;
-}
-.list-toolbar .tabs button,
-.filter-line,
-.search-box input {
-  font-size: 12px;
-}
-@media (max-width: 760px) {
-  .page-heading p {
-    font-size: 11px;
-  }
-  .card-header h2 {
-    font-size: 14px;
-  }
-  .card-header p {
-    font-size: 11px;
-  }
-  .stat-top {
-    font-size: 11px;
-  }
-  .stat-sub {
-    font-size: 10px;
-  }
-  .chart-legend button {
-    font-size: 11px;
-  }
-  .attention-item strong {
-    font-size: 12px;
-  }
-  .attention-item small {
-    font-size: 10px;
-  }
-  .welcome-banner strong {
-    font-size: 12px;
-  }
-  .welcome-banner p {
-    font-size: 10px;
-  }
-  .welcome-banner button {
-    font-size: 0;
-  }
-  .local-indicator {
-    font-size: 8px;
-  }
-  .page-footer {
-    font-size: 8px;
-  }
-}
-@media (max-width: 480px) {
-  .stat-sub {
-    font-size: 9px;
-  }
-  .card-header .text-button {
-    font-size: 10px;
-  }
-  .chart-legend button {
-    font-size: 10px;
-  }
-  .card-footer-note {
-    font-size: 9px;
-  }
-  .table-footer {
-    font-size: 10px;
-  }
-  .list-toolbar .tabs button {
-    font-size: 11px;
-  }
-}
 .sidebar-close {
   display: none;
 }
@@ -2736,59 +2585,43 @@ th {
   color: var(--muted);
 }
 
-/* A compact, readable directory without changing the other workspaces. */
-.main-shell[data-page="customers"] .topbar {
-  height: 60px;
-  padding-inline: 28px;
-}
-.main-shell[data-page="customers"] .breadcrumb { font-size: 13px; }
-.main-shell[data-page="customers"] .local-indicator { font-size: 12px; }
-.main-shell[data-page="customers"] > main { padding: 20px 28px 0; }
-.main-shell[data-page="customers"] .page-heading { margin-bottom: 16px; }
-.main-shell[data-page="customers"] .eyebrow { font-size: 10px; margin-bottom: 4px; }
-.main-shell[data-page="customers"] h1 { font-size: 30px; }
-.main-shell[data-page="customers"] .page-heading p { font-size: 14px; margin-top: 4px; }
-.main-shell[data-page="customers"] .heading-actions { padding-top: 0; }
-.main-shell[data-page="customers"] .heading-actions .button { font-size: 14px; min-height: 42px; }
-.main-shell[data-page="customers"] .customer-toolbar { margin-bottom: 12px; gap: 12px; font-size: 14px; }
-.main-shell[data-page="customers"] .customer-toolbar .search-box { width: 320px; height: 42px; }
-.main-shell[data-page="customers"] .customer-toolbar input { font-size: 14px; }
-.main-shell[data-page="customers"] .customer-grid {
+/* Customer directory layout; shared typography lives in admin-layout.css. */
+.app-shell .customer-toolbar { margin-bottom: 12px; gap: 12px; font-size: 14px; }
+.app-shell .customer-toolbar .search-box { width: 320px; height: 42px; }
+.app-shell .customer-toolbar input { font-size: 14px; }
+.app-shell .customer-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   align-items: stretch;
 }
-.main-shell[data-page="customers"] .customer-card {
+.app-shell .customer-card {
   min-width: 0;
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
 }
-.main-shell[data-page="customers"] .customer-card-top { gap: 12px; margin-bottom: 0; align-items: flex-start; }
-.main-shell[data-page="customers"] .customer-avatar { flex-shrink: 0; font-size: 16px; }
+.app-shell .customer-card-top { gap: 12px; margin-bottom: 0; align-items: flex-start; }
+.app-shell .customer-avatar { flex-shrink: 0; font-size: 16px; }
 .customer-identity { flex: 1; min-width: 0; }
-.main-shell[data-page="customers"] .customer-identity h2 { font-size: 18px; line-height: 1.4; overflow-wrap: anywhere; }
+.app-shell .customer-identity h2 { font-size: 18px; line-height: 1.4; overflow-wrap: anywhere; }
 .customer-identity p { font-size: 14px; line-height: 1.5; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
-.main-shell[data-page="customers"] .customer-card .subtle-pill { font-size: 12px; white-space: nowrap; padding: 4px 7px; }
-.main-shell[data-page="customers"] .customer-card dl { margin: 16px 0; font-size: 14px; gap: 8px; }
-.main-shell[data-page="customers"] .customer-card dl > div { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 10px; line-height: 1.5; }
-.main-shell[data-page="customers"] .customer-card dd { text-align: left; line-height: 1.5; }
-.main-shell[data-page="customers"] .customer-balance { margin-top: auto; padding: 12px 0 6px; font-size: 14px; flex-wrap: wrap; }
-.main-shell[data-page="customers"] .customer-balance strong { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.main-shell[data-page="customers"] .customer-card .text-button { align-self: flex-start; min-height: 40px; font-size: 14px; color: var(--green); }
+.app-shell .customer-card .subtle-pill { font-size: 12px; white-space: nowrap; padding: 4px 7px; }
+.app-shell .customer-card dl { margin: 16px 0; font-size: 14px; gap: 8px; }
+.app-shell .customer-card dl > div { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 10px; line-height: 1.5; }
+.app-shell .customer-card dd { text-align: left; line-height: 1.5; }
+.app-shell .customer-balance { margin-top: auto; padding: 12px 0 6px; font-size: 14px; flex-wrap: wrap; }
+.app-shell .customer-balance strong { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.app-shell .customer-card .text-button { align-self: flex-start; min-height: 40px; font-size: 14px; color: var(--green); }
 @media (max-width: 1200px) {
-  .main-shell[data-page="customers"] .customer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell .customer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 960px) {
-  .main-shell[data-page="customers"] .customer-grid { grid-template-columns: 1fr; }
+  .app-shell .customer-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
-  .main-shell[data-page="customers"] .topbar { padding-inline: 16px; }
-  .main-shell[data-page="customers"] > main { padding: 16px 16px 0; }
-  .main-shell[data-page="customers"] .local-indicator { font-size: 11px; }
-  .main-shell[data-page="customers"] .customer-toolbar { gap: 8px; }
-  .main-shell[data-page="customers"] .customer-toolbar .search-box { width: 100%; }
-  .main-shell[data-page="customers"] .customer-toolbar input { font-size: 16px; }
-  .main-shell[data-page="customers"] .customer-card { padding: 16px; }
-  .main-shell[data-page="customers"] .customer-card .text-button { min-height: 44px; }
+  .app-shell .customer-toolbar { gap: 8px; }
+  .app-shell .customer-toolbar .search-box { width: 100%; }
+  .app-shell .customer-toolbar input { font-size: 16px; }
+  .app-shell .customer-card { padding: 16px; }
+  .app-shell .customer-card .text-button { min-height: 44px; }
 }

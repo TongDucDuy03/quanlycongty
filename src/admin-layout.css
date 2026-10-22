@@ -1,0 +1,207 @@
+/* Shared workspace scale. Scoped to the admin shell, including lazy-loaded tabs. */
+.app-shell {
+  --workspace-gap: 16px;
+  --workspace-padding: 20px;
+  --sidebar-width: 244px;
+  --muted: #65766f;
+  font-size: 14px;
+  line-height: 1.55;
+}
+[data-theme="dark"] .app-shell { --muted: #a4b8ad; }
+.app-shell .sidebar { width: var(--sidebar-width); }
+.app-shell .main-shell { margin-left: var(--sidebar-width); }
+.app-shell .nav-item { font-size: 14px; white-space: normal; min-height: 46px; }
+.app-shell .nav-item > svg { flex-shrink: 0; }
+.app-shell .workspace { margin-block: 24px; }
+.app-shell .workspace strong, .app-shell .profile strong { font-size: 12px; }
+.app-shell .workspace small, .app-shell .profile small,
+.app-shell .help-card p, .app-shell .help-card button { font-size: 11px; }
+.app-shell .help-card strong { font-size: 12px; }
+.app-shell .nav-caption { font-size: 10px; }
+.app-shell .sidebar-bottom { padding-top: 20px; }
+.app-shell .topbar { height: 60px; padding-inline: 28px; }
+.app-shell .breadcrumb { font-size: 13px; min-width: 0; }
+.app-shell .breadcrumb strong { font-size: 13px; }
+.app-shell .local-indicator { font-size: 12px; }
+.app-shell .main-shell > main { padding: 20px 28px 0; }
+.app-shell .page-heading { margin-bottom: var(--workspace-gap); gap: 16px 24px; }
+.app-shell .page-heading > div:first-child { min-width: 0; }
+.app-shell .eyebrow { font-size: 10px; margin-bottom: 4px; }
+.app-shell .page-heading h1 { font-size: 30px; line-height: 1.35; overflow-wrap: anywhere; }
+.app-shell .page-heading p { font-size: 14px; margin-top: 4px; max-width: 640px; }
+.app-shell .heading-actions { padding-top: 0; flex-wrap: wrap; flex-shrink: 0; }
+.app-shell :is(.button, .payroll-button), .app-shell .sheets-connection .btn {
+  font-size: 14px;
+  min-height: 42px;
+  line-height: 1.45;
+  white-space: normal;
+}
+.app-shell :is(.button, .payroll-button) > svg { flex-shrink: 0; }
+.app-shell .small-button { font-size: 13px; min-height: 36px; }
+.app-shell .text-button { font-size: 14px; min-height: 36px; color: var(--green); }
+.app-shell .date-chip { font-size: 13px; }
+.app-shell :is(.card-header, .payroll-toolbar, .payroll-section-title) {
+  padding: 16px var(--workspace-padding);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.app-shell :is(.card-header h2, .settings-card > h2, .payroll-toolbar h3, .payroll-section-title h3, .commerce-list-heading h3) {
+  font-size: 18px;
+  line-height: 1.45;
+}
+.app-shell :is(.card-header p, .settings-card > p, .payroll-muted, .payroll-heading p,
+  .payroll-note, .payroll-error, .commerce-help, .commerce-empty p,
+  .site-help, .site-empty, .site-publish-bar p, .info-note, .demo-steps p) {
+  font-size: 14px;
+  line-height: 1.7;
+}
+.app-shell :is(.card-header p, .payroll-toolbar p) { margin-top: 4px; }
+.app-shell :is(.stats-grid, .overview-middle, .mini-stats, .settings-grid, .payroll-stats,
+  .payroll-workspace, .site-workspace, .site-editor, .site-editor-fieldset, .commerce-browser) { gap: var(--workspace-gap); }
+.app-shell :is(.stats-grid, .overview-middle, .mini-stats, .commerce-tabs, .commerce-card,
+  .welcome-banner, .commerce-setup) { margin-bottom: var(--workspace-gap); }
+.app-shell .section-gap { margin-top: var(--workspace-gap); }
+.app-shell :is(.stat-card, .payroll-stat, .mini-stats > div, .settings-card, .site-publish-bar, .sheets-connection) {
+  padding: var(--workspace-padding);
+  min-width: 0;
+}
+.app-shell :is(.stat-top, .mini-stats span, .payroll-stat > span) { font-size: 14px; }
+.app-shell .stat-top { align-items: flex-start; gap: 8px; }
+.app-shell :is(.stat-value, .payroll-stat strong) { font-size: 28px; line-height: 1.25; margin: 10px 0; overflow-wrap: anywhere; }
+.app-shell .mini-stats strong { font-size: 24px; line-height: 1.3; }
+.app-shell :is(.stat-sub, .payroll-stat small) { font-size: 12px; line-height: 1.6; }
+.app-shell .stat-sub { flex-wrap: wrap; }
+.app-shell :is(.welcome-banner strong, .attention-item strong, .demo-steps strong) { font-size: 14px; }
+.app-shell :is(.welcome-banner p, .attention-item small) { font-size: 13px; }
+.app-shell .welcome-banner { padding: 16px 20px; }
+.app-shell .welcome-banner button { font-size: 13px; }
+.app-shell .production-chart { gap: 24px; padding: 8px 20px 20px; }
+.app-shell .chart-legend button { font-size: 13px; line-height: 1.5; }
+.app-shell .chart-legend b { font-size: 14px; }
+.app-shell :is(.donut span, .card-footer-note, .subtle-pill, .tiny-count) { font-size: 12px; }
+.app-shell .card-footer-note { flex-wrap: wrap; line-height: 1.6; padding: 10px 20px; }
+.app-shell .attention-list { padding-inline: 20px; }
+.app-shell .list-toolbar { padding: 16px 20px; gap: 12px; flex-wrap: wrap; }
+.app-shell .tabs { max-width: 100%; overflow-x: auto; }
+.app-shell :is(.tabs button, .payroll-tabs button, .commerce-tabs button, .site-section-nav button) {
+  font-size: 14px;
+  line-height: 1.45;
+  min-height: 42px;
+}
+.app-shell .tabs span { font-size: 12px; }
+.app-shell .search-box { width: 320px; min-width: 0; height: 42px; }
+.app-shell :is(.search-box input, .commerce-search input, .filter-line, .filter-line select,
+  .payroll-input, .payroll-workspace select) { font-size: 14px; }
+.app-shell .filter-line { padding: 12px 20px; flex-wrap: wrap; }
+.app-shell .filter-line label { min-width: 0; flex-wrap: wrap; }
+.app-shell .filter-line select { min-height: 40px; max-width: 100%; }
+.app-shell :is(td, .table-link, .customer-name, .payroll-table td strong) { font-size: 14px; line-height: 1.55; }
+.app-shell th { font-size: 12px; letter-spacing: .25px; }
+.app-shell :is(td, th) { padding: 13px 20px; }
+.app-shell :is(.cell-sub, .payroll-table td small) { font-size: 12px; line-height: 1.6; }
+.app-shell .progress-cell > span { font-size: 12px; }
+.app-shell :is(.badge, .payroll-badge, .paid-label) { font-size: 12px; }
+.app-shell .table-footer { font-size: 13px; padding: 14px 20px; flex-wrap: wrap; gap: 10px; }
+.app-shell .empty strong { font-size: 16px; }
+.app-shell .empty span { font-size: 14px; }
+.app-shell .board-intro { font-size: 13px; margin: 0 0 16px; flex-wrap: wrap; }
+.app-shell .kanban { grid-template-columns: repeat(5, minmax(240px, 1fr)); gap: 16px; }
+.app-shell .kanban-column > h2 { font-size: 14px; }
+.app-shell .kanban-column > h2 > span:last-child { font-size: 12px; }
+.app-shell .job-main h3 { font-size: 16px; }
+.app-shell :is(.job-main p, .job-code, .job-spec, .advance-button, .kanban-empty) { font-size: 13px; }
+.app-shell :is(.job-main > small, .job-foot > span:first-child, .priority-label) { font-size: 12px; }
+.app-shell .advance-button { min-height: 42px; gap: 8px; }
+.app-shell .operator-avatar { font-size: 10px; width: 28px; height: 28px; }
+.app-shell :is(.job-main h3, .job-main p, .job-spec span) { overflow-wrap: anywhere; }
+.app-shell .customer-toolbar { font-size: 14px; }
+.app-shell :is(.settings-status, .site-publish-bar p span, .site-section-tools small, .site-editor-actions > span,
+  .site-product-list p, .site-media-grid strong, .site-media-grid button, .site-draft-state,
+  .image-picker-label, .commerce-order-summary > span, .commerce-filter-row label span,
+  .commerce-document-item, .commerce-preview-toolbar p, .commerce-document-meta) { font-size: 13px; }
+.app-shell :is(.site-product-list strong, .commerce-item-top strong) { font-size: 15px; }
+.app-shell :is(.site-fields label, .site-gallery-editor label, .commerce-fields label > span,
+  .commerce-void-reason > span, .field, .payroll-field, .payroll-checkbox) { font-size: 14px; }
+.app-shell :is(.site-fields, .site-gallery-editor) { gap: 16px; }
+.app-shell .site-fields { padding: 20px; }
+.app-shell :is(.site-product-list, .site-gallery-editor, .site-section-tools, .site-media-grid) { padding-inline: 20px; }
+.app-shell :is(.site-fields input, .site-fields textarea, .site-gallery-editor input, .site-gallery-editor textarea,
+  .commerce-fields input, .commerce-fields select, .commerce-fields textarea, .field input, .field select,
+  .field textarea, .payroll-field input, .payroll-field select, .payroll-field textarea) { font-size: 14px; }
+.app-shell :is(.site-draft-state small, .site-media-grid small, .image-picker > small, .image-picker > p,
+  .image-url-option, .commerce-document-item small, .commerce-issued-badge, .commerce-void-badge,
+  .field-hint, .payroll-field small) { font-size: 12px; }
+.app-shell .commerce-filter-row select { font-size: 13px; min-height: 40px; }
+.app-shell .commerce-topline { margin: 0 0 16px; }
+.app-shell .commerce-topline h2 { font-size: 18px; }
+.app-shell .commerce-form { padding: 0 20px 20px; }
+.app-shell .commerce-tabs button { justify-content: center; }
+.app-shell .settings-icon { margin-bottom: 12px; }
+.app-shell .demo-steps { margin-top: 16px; gap: 20px; }
+.app-shell .page-footer { font-size: 11px; padding-block: 24px; gap: 12px; }
+.app-shell .modal-head h2 { font-size: 20px; }
+.app-shell :is(.modal-body > p, .detail-grid strong, .detail-title p, .detail-notes p) { font-size: 14px; }
+.app-shell .detail-grid span { font-size: 13px; }
+
+@media (min-width: 1550px) {
+  .app-shell { --sidebar-width: 260px; }
+}
+@media (max-width: 1200px) {
+  .app-shell .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell .overview-middle { grid-template-columns: 1fr; }
+}
+@media (max-width: 1100px) {
+  .app-shell .page-heading { flex-direction: column; align-items: stretch; gap: 12px; }
+  .app-shell .heading-actions { justify-content: flex-start; }
+  .app-shell .heading-actions .secondary { display: inline-flex; }
+  .app-shell .finance-stats { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .app-shell { --workspace-padding: 16px; }
+  .app-shell .main-shell { margin-left: 0; }
+  .app-shell .topbar { padding-inline: 12px; gap: 6px; }
+  .app-shell .main-shell > main { padding: 16px 16px 0; }
+  .app-shell .breadcrumb { gap: 4px; }
+  .app-shell .breadcrumb strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app-shell .top-actions { gap: 2px; flex-shrink: 0; }
+  .app-shell .local-indicator { font-size: 11px; max-width: 130px; line-height: 1.4; padding-right: 6px; text-align: left; }
+  .app-shell .local-indicator i { flex-shrink: 0; }
+  .app-shell .page-heading h1 { font-size: 26px; letter-spacing: -.7px; }
+  .app-shell .page-heading p { max-width: none; }
+  .app-shell :is(.button, .payroll-button, .text-button, .advance-button), .app-shell .sheets-connection .btn { min-height: 44px; }
+  .app-shell .heading-actions { gap: 8px; }
+  .app-shell .heading-actions .button { flex: 1; padding: 10px 12px; }
+  .app-shell .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .app-shell .finance-stats { grid-template-columns: 1fr; }
+  .app-shell :is(.stat-value, .payroll-stat strong) { font-size: 24px; }
+  .app-shell .stat-top { font-size: 13px; }
+  .app-shell .stat-icon { width: 28px; height: 28px; }
+  .app-shell .stat-sub { font-size: 12px; }
+  .app-shell .stat-sub > svg { display: none; }
+  .app-shell .welcome-banner { flex-wrap: wrap; padding: 16px; gap: 12px; }
+  .app-shell .welcome-banner > div:nth-child(2) { flex: 1; min-width: 0; }
+  .app-shell .welcome-banner button { min-height: 36px; font-size: 13px; gap: 8px; flex-basis: 100%; margin-left: 49px; }
+  .app-shell :is(.attention-list, .list-toolbar, .filter-line, .card-footer-note) { padding-inline: 16px; }
+  .app-shell .attention-list { display: block; }
+  .app-shell .attention-item { padding-block: 12px; }
+  .app-shell .search-box { width: 100%; }
+  .app-shell .filter-line label { font-size: 13px; width: 100%; }
+  .app-shell .filter-line select { flex: 1; min-width: 0; }
+  .app-shell .tabs button { padding: 10px 12px; }
+  .app-shell .board-intro > span:last-child { max-width: none; text-align: left; }
+  .app-shell :is(.site-fields, .commerce-form) { padding-inline: 16px; }
+  .app-shell :is(.site-product-list, .site-gallery-editor, .site-section-tools, .site-media-grid) { padding-inline: 16px; }
+  .app-shell :is(.site-editor-actions .button, .image-picker-actions .button) { font-size: 13px; }
+  /* Keep mobile form controls readable without browser focus zoom. */
+  .app-shell :is(input:not([type=checkbox]):not([type=radio]):not([type=color]), select, textarea) { font-size: 16px; }
+}
+@media (max-width: 380px) {
+  .app-shell .stats-grid { grid-template-columns: 1fr; }
+  .app-shell .mini-stats { grid-template-columns: 1fr; }
+  .app-shell .production-chart { flex-direction: column; gap: 16px; }
+  .app-shell .chart-legend { width: 100%; max-width: none; }
+  .app-shell .payroll-tabs button { white-space: normal; padding-inline: 6px; gap: 5px; }
+  .app-shell .payroll-stat { display: block; }
+  .app-shell .page-footer { flex-wrap: wrap; }
+  .app-shell .page-footer > span:last-child { max-width: none; text-align: left; }
+}
