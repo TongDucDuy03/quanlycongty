@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildPublicCatalog, ensureCommerce, getCommerce, getWebsiteSettings, issueDocument, safePublicUrl, validateCommerceTransition, validatePublicCatalog, voidDocument, type CatalogProduct } from './commerce'
+import { publicDemo } from './public-demo'
 import { validateData } from './domain'
 import { createSeedData } from './seed'
 
@@ -190,5 +191,10 @@ describe('published catalog allowlist', () => {
     expect(safePublicUrl('https://example.com/image.png', true)).toBe(true)
     expect(safePublicUrl('assets/shaft.svg', true)).toBe(true)
     expect(() => buildPublicCatalog(createSeedData())).toThrow()
+  })
+  it('validates public demo catalog and enriched about section', () => {
+    expect(validatePublicCatalog(publicDemo)).toBe(true)
+    expect(publicDemo.profile.site?.aboutTitle).toContain('Chính xác')
+    expect(publicDemo.profile.site?.aboutText).toContain('±0.005mm')
   })
 })

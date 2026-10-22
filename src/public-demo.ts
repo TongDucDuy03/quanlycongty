@@ -15,8 +15,8 @@ export const publicDemo: PublicCatalog = {
     site: {
       ...getWebsiteSettings(demoProfile),
       brandColor: '#146d5b', heroEyebrow: 'GIA CÔNG CƠ KHÍ THEO YÊU CẦU',
-      aboutTitle: 'Một không gian để giới thiệu năng lực thật.',
-      aboutText: 'Đây là phần giới thiệu mẫu. Doanh nghiệp có thể thay bằng câu chuyện về xưởng, đội ngũ, cách tiếp nhận bản vẽ và phương pháp kiểm tra sản phẩm.\n\nĐăng ảnh xưởng hoặc máy móc của bạn, mô tả những hạng mục thực sự có thể thực hiện để khách hàng hiểu rõ trước khi trao đổi.',
+      aboutTitle: 'Chính xác từng micromet – Năng lực thực tế theo bản vẽ.',
+      aboutText: 'Cơ khí An Phát chuyên gia công cơ khí chính xác, tiện & phay CNC, chế tạo đồ gá và chi tiết máy theo bản vẽ kỹ thuật.\n\nVới đội ngũ thợ lành nghề và hệ thống đo kiểm kỹ lưỡng, chúng tôi cam kết dung sai đạt chuẩn đến ±0.005mm, kiểm soát chất lượng từ phôi đầu vào đến khi nghiệm thu và bảo mật 100% bản vẽ của đối tác trước khi sản xuất.',
       galleryTitle: 'Không gian xưởng & công việc',
       gallery: [
         { id: 'demo-workshop', title: 'Không gian gia công', description: 'Vị trí minh họa để chủ xưởng đăng ảnh máy móc và khu vực sản xuất thực tế.', image: { src: '', alt: '' } },

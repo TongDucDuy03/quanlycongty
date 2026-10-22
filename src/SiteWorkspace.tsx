@@ -84,7 +84,7 @@ export default function SiteWorkspace({ data, onCommit, onDirtyChange }: { data:
         <div className="wide"><ImagePicker label="Ảnh bìa" value={profile.heroImage} onChange={src => changeProfile('heroImage', src)} onBusyChange={value => imageBusy('hero', value)} /></div>
         <TextField label="Mô tả ảnh bìa" value={settings.heroImageAlt} onChange={value => changeSetting('heroImageAlt', value)} max={300} />
       </div></Section>
-      <Section id="about" title="Giới thiệu & năng lực" help="Giới thiệu công việc bạn nhận gia công, thiết bị và cách làm việc bằng thông tin thực tế."><div className="site-fields">
+      <Section id="about" title="Giới thiệu & năng lực" help="Giới thiệu kinh nghiệm, dung sai kiểm soát (±0.005mm), quy trình đo kiểm và cam kết bảo mật bản vẽ (NDA) để tạo niềm tin với khách hàng doanh nghiệp."><div className="site-fields">
         <TextField label="Tiêu đề phần giới thiệu" value={settings.aboutTitle} onChange={value => changeSetting('aboutTitle', value)} max={200} />
         <TextField label="Bài giới thiệu công ty" multiline max={6000} value={settings.aboutText} onChange={value => changeSetting('aboutText', value)} />
         <div className="wide"><ImagePicker label="Ảnh giới thiệu" value={settings.aboutImage.src} onChange={src => changeSetting('aboutImage', { ...settings.aboutImage, src })} onBusyChange={value => imageBusy('about', value)} /></div>
