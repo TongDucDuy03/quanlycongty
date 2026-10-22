@@ -2775,7 +2775,7 @@ th {
 .main-shell[data-page="customers"] .customer-card dd { text-align: left; line-height: 1.5; }
 .main-shell[data-page="customers"] .customer-balance { margin-top: auto; padding: 12px 0 6px; font-size: 14px; flex-wrap: wrap; }
 .main-shell[data-page="customers"] .customer-balance strong { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.main-shell[data-page="customers"] .customer-card .text-button { align-self: flex-start; min-height: 40px; font-size: 14px; }
+.main-shell[data-page="customers"] .customer-card .text-button { align-self: flex-start; min-height: 40px; font-size: 14px; color: var(--green); }
 @media (max-width: 1200px) {
   .main-shell[data-page="customers"] .customer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
