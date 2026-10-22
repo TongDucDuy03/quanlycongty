@@ -100,14 +100,14 @@ Tên khách, số điện thoại và nghiệp vụ mẫu phải là dữ liệu
 **Đợt D — vận hành:** đào tạo ngắn theo vai trò, chuyển dữ liệu có kiểm tra tổng, thống nhất lịch sao lưu, người hỗ trợ và ngân sách nếu vượt quota. Chỉ thêm offline/PWA khi đã có thiết kế hàng đợi và giải quyết xung đột; responsive không đồng nghĩa đồng bộ offline.
 
 
-## 8. M? r?ng nh?n s? v? l??ng (22/10/2026)
+## 8. Mở rộng nhân sự và lương (22/10/2026)
 
-Y?u c?u b? sung: h? s? c?ng nh?n, l??ng ri?ng t?ng ng??i, danh m?c ph? c?p, c?u h?nh ch? s? t?nh l??ng, ch?m c?ng v? b?ng l??ng th?ng. Ph?n h? n?m trong m?c **Nh?n s? & ti?n l??ng**, g?m b?n tab: nh?n s?, ch?m c?ng, b?ng l??ng v? c?u h?nh.
+Yêu cầu bổ sung: hồ sơ công nhân, lương riêng từng người, danh mục phụ cấp, cấu hình chỉ số tính lương, chấm công và bảng lương tháng. Phân hệ nằm trong mục **Nhân sự & tiền lương**, gồm bốn tab: nhân sự, chấm công, bảng lương và cấu hình.
 
-- Gi? t??ng th?ch d? li?u v1: tr??ng `payroll` l? t?y ch?n; b?n sao c? gi? nguy?n ??n/kho/kh?ch v? b?t ??u v?i nh?n s? tr?ng.
-- T?ch t?nh l??ng th?nh h?m thu?n c? ki?m th?; h? tr? l??ng th?ng/ng?y/gi?, ph?p h??ng l??ng, ba nh?m t?ng ca, ph? c?p c? ??nh/ng?y th?c l?m, kho?n c?ng/tr? th?ng.
-- Ch?t k? l?u snapshot; m? l?i ph?i x?c nh?n, kh?ng t? s?a th?ng c? khi m?c l??ng/c?u h?nh m?i thay ??i.
-- Ki?m th? c? c?c l?i ph?n tr?m, c?ng tr?ng, d? li?u nh?p, ng?y l?m vi?c, kh?a k?, l?ch s? v? th?c l?nh ?m.
-- ??i t?n th? m?c theo y?u c?u th?nh `D:\qu?n l? c?ng ty`, ??y to?n b? ngu?n l?n `TongDucDuy03/quanlycongty`, d?ng workflow Pages cho demo.
+- Giữ tương thích dữ liệu v1: trường `payroll` là tùy chọn; bản sao cũ giữ nguyên đơn/kho/khách và bắt đầu với nhân sự trống.
+- Tách tính lương thành hàm thuần có kiểm thử; hỗ trợ lương tháng/ngày/giờ, phép hưởng lương, ba nhóm tăng ca, phụ cấp cố định/ngày thực làm, khoản cộng/trừ tháng.
+- Chốt kỳ lưu snapshot; mở lại phải xác nhận, không tự sửa tháng cũ khi mức lương/cấu hình mới thay đổi.
+- Kiểm thử các lỗi phần trăm, công trùng, dữ liệu nhập, ngày làm việc, khóa kỳ, lịch sử và thực lĩnh âm.
+- Đặt bản bàn giao ở `D:\quản lý công ty`, đẩy toàn bộ nguồn lên `TongDucDuy03/quanlycongty`, dùng workflow Pages cho demo.
 
-C?ng th?c v? gi?i h?n chi ti?t: [PAYROLL.md](PAYROLL.md). M? t? t?nh n?ng ?? g?i ng??i xem demo: [FEATURES.md](FEATURES.md). D? li?u l??ng th?t c?n l?u tr? c? x?c th?c v? ph?n quy?n tr??c khi ??a v?o s? d?ng nhi?u ng??i.
+Công thức và giới hạn chi tiết: [PAYROLL.md](PAYROLL.md). Mô tả tính năng để gửi người xem demo: [FEATURES.md](FEATURES.md). Dữ liệu lương thật cần lưu trữ có xác thực và phân quyền trước khi đưa vào sử dụng nhiều người.

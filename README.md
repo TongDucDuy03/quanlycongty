@@ -4,6 +4,8 @@ Demo quản lý doanh nghiệp gia công cơ khí nhỏ, bằng tiếng Việt. 
 
 Repository: [TongDucDuy03/quanlycongty](https://github.com/TongDucDuy03/quanlycongty). Địa chỉ Pages: [tongducduy03.github.io/quanlycongty](https://tongducduy03.github.io/quanlycongty/). Xem [mô tả tính năng ngắn gọn](docs/FEATURES.md).
 
+Thư mục bản bàn giao: `D:\quản lý công ty`.
+
 ## Chạy ngay
 
 Yêu cầu Node.js 22.12+ (hoặc bản LTS mới tương thích Vite).
@@ -43,7 +45,7 @@ Các nút thao tác cập nhật dữ liệu thực trong demo. Số phần tră
 
 ## Lưu dữ liệu: đề xuất
 
-**Demo:** localStorage, không mất tiền/không cần tài khoản; không tự đồng bộ giữa điện thoại và máy tính. Nên xuất JSON trước khi xóa bộ nhớ trình duyệt. JSON khôi phục đầy đủ; CSV chỉ là danh sách đơn hàng.
+**Demo:** localStorage, không mất tiền/không cần tài khoản; không tự đồng bộ giữa điện thoại và máy tính. Nên xuất JSON trước khi xóa bộ nhớ trình duyệt. JSON khôi phục đầy đủ; CSV xuất riêng danh sách đơn hàng hoặc bảng lương của tháng được chọn.
 
 **Thử dữ liệu thật:** đề xuất Supabase Free hơn Sheets vì có Auth, PostgreSQL và Row Level Security. Bản tích hợp hiện là kho riêng một tài khoản, dùng cùng tài khoản trên nhiều thiết bị; không phải hệ thống nhân viên phân quyền. Đồng bộ cần bấm tải/lưu, chưa realtime. Hướng dẫn tại [docs/SUPABASE.md](docs/SUPABASE.md).
 
@@ -70,7 +72,7 @@ GitHub Pages chỉ dùng cho **demo dữ liệu giả** trong cấu hình này. 
 
 Vite dùng `base: './'`; đường dẫn `#orders`, `#inventory`... không gây lỗi 404 khi tải lại. Quyền ghi Pages chỉ cấp cho job deploy. Không cần backend Node trên Pages.
 
-Chưa có repository đích hoặc phiên đăng nhập GitHub trong môi trường bàn giao, nên chưa có URL Pages đã xuất bản. Workflow và mã nguồn đã chuẩn bị để đẩy lên.
+Repository dự án là `TongDucDuy03/quanlycongty`, nguồn Pages là GitHub Actions. Xem trạng thái build/deploy tại tab Actions của repository.
 
 ## Kiểm tra
 
@@ -82,7 +84,7 @@ npx playwright test
 npm run verify:dist
 ```
 
-19 unit tests kiểm tra tiền, hạn giao, dữ liệu nhập, kho, UUID qua HTTP LAN và lưu trữ. 16 Playwright cases kiểm tra luồng dùng thật trên desktop/điện thoại. `verify:dist` kiểm tra bản build dưới đường dẫn repository và chụp bốn ảnh preview. Các kiểm tra cloud/RLS trên Supabase thật cần tài khoản hạ tầng riêng, không được xem là đã chạy chỉ vì có schema SQL.
+41 unit tests kiểm tra nghiệp vụ, tính lương, dữ liệu nhập, kho, UUID qua HTTP LAN và lưu trữ. 22 Playwright cases kiểm tra luồng dùng thật trên desktop/điện thoại. `verify:dist` kiểm tra bản build dưới đường dẫn repository, tải phân hệ lương và chụp ảnh sáng/tối. Các kiểm tra cloud/RLS trên Supabase thật cần tài khoản hạ tầng riêng, không được xem là đã chạy chỉ vì có schema SQL.
 
 ## Tài liệu
 

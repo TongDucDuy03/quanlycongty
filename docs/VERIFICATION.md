@@ -1,18 +1,19 @@
 # Biên bản kiểm tra demo XưởngViệt
 
-Ngày: 22/10/2026. Thư mục dự án: `D:\qu?n l? c?ng ty`. Ban đầu thư mục trống, không có mã nguồn hoặc Git remote. Nhóm diey-team gồm nghiên cứu, kiến trúc, triển khai nghiệp vụ, QA độc lập và review độc lập. Lead tích hợp và kiểm tra bản cuối.
+Ngày: 22/10/2026. Thư mục dự án: `D:\quản lý công ty`. Ban đầu thư mục trống, không có mã nguồn hoặc Git remote. Nhóm diey-team gồm nghiên cứu, kiến trúc, triển khai nghiệp vụ, QA độc lập và review độc lập. Lead tích hợp và kiểm tra bản cuối.
 
 ## Kết quả
 
 | Kiểm tra | Kết quả |
 | --- | --- |
 | `npm run build` | TypeScript và Vite build thành công |
-| `npm test` | 19/19 kiểm thử domain và storage đạt |
-| `npx playwright test` | 16/16 đạt, desktop 1440×1000 và mobile 390×844 |
+| `npm test` | 41/41 kiểm thử nghiệp vụ, tính lương và lưu trữ đạt |
+| `npx playwright test` | 22/22 đạt, desktop 1440×1000 và mobile 390×844 |
 | `npm run verify:dist` | Release chạy tại `/workshop-demo/`, assets đúng đường dẫn, reload hash route được |
 | Kiểm tra hình ảnh | Đã xem desktop/mobile, sáng/tối; không tràn ngang toàn trang |
 | Supabase thật | Chưa chạy: chưa có project và tài khoản được cấu hình |
-| GitHub Pages công khai | Chưa xuất bản: chưa có repository đích và phiên đăng nhập GitHub |
+| GitHub Pages công khai | Workflow 39722088275 thành công; trang công khai trả HTTP 200 |
+| Kiểm tra trực tiếp bản công khai | Desktop/mobile: tổng quan, bốn tab nhân sự, xuất CSV, chế độ tối; không lỗi JavaScript hoặc tràn ngang toàn trang |
 
 Screenshots bản production: [desktop sáng](previews/desktop-light.png), [desktop tối](previews/desktop-dark.png), [điện thoại sáng](previews/mobile-light.png), [điện thoại tối](previews/mobile-dark.png).
 
@@ -45,13 +46,13 @@ Các mục cloud được review mã và kiểm tra storage bằng unit tests; c
 
 ## Giới hạn nghiệm thu
 
-Bản nghiệm thu là **demo quản lý**, không phải phần mềm kế toán hoặc ERP production. Gói Supabase có thể thay đổi hạn mức/tạm dừng. Kho snapshot một chủ xưởng chưa hỗ trợ quyền theo nhân viên. Không có dữ liệu doanh nghiệp thật trong seed. GitHub workflow chỉ xuất bản demo tĩnh, chưa có URL triển khai đã kiểm chứng.
+Bản nghiệm thu là **demo quản lý**, không phải phần mềm kế toán hoặc ERP production. Gói Supabase có thể thay đổi hạn mức/tạm dừng. Kho snapshot một chủ xưởng chưa hỗ trợ quyền theo nhân viên. Không có dữ liệu doanh nghiệp thật trong seed. GitHub workflow xuất bản demo tĩnh tại https://tongducduy03.github.io/quanlycongty/.
 
 
-## B? sung nh?n s? v? ti?n l??ng
+## Bổ sung nhân sự và tiền lương
 
-Ki?m th? ??i chi?u s? ti?n ??c l?p: m?c l??ng th?ng 26.000.000?, chu?n 26 ng?y/8 gi?, m?t ng?y 8 gi? th??ng +2 gi? t?ng ca h? s?1,5 t?o l??ng c?ng+t?ng ca 1.375.000?. C?ng ph? c?p ng?y, th??ng v? tr? b?o hi?m10%, t?m ?ng, thu?, kh?u tr? cho k?t qu? ??ng k? v?ng trong test. Ch?m c?ng tr?ng ng??i/ng?y c?p nh?t d?ng c?; c?ng v??t gi? chu?n b? ch?n.
+Kiểm thử đối chiếu số tiền độc lập: mức lương tháng 26.000.000đ, chuẩn 26 ngày/8 giờ, một ngày 8 giờ thường + 2 giờ tăng ca hệ số 1,5 tạo lương công và tăng ca 1.375.000đ. Cộng phụ cấp ngày, thưởng và trừ bảo hiểm 10%, tạm ứng, thuế, khấu trừ cho kết quả đúng kỳ vọng trong test. Chấm công trùng người/ngày cập nhật dòng cũ; công vượt giờ chuẩn bị chặn.
 
-?? ki?m tra ch?t/m? th?ng, thay m?c l??ng sau ch?t kh?ng l?m ??i snapshot c?, CSV ??ng s? ti?n, th?ng kh?ng c? c?ng, ??c b?n sao c? kh?ng t? th?m nh?n vi?n v? t? ch?i b?n sao c? c?u h?nh l??ng sai. C? b?n tab ??u ???c ki?m tra ? hai k?ch th??c v? hai theme.
+Đã kiểm tra chốt/mở tháng, thay mức lương sau chốt không làm đổi snapshot cũ, CSV đúng số tiền, tháng không có công, đọc bản sao cũ không tự thêm nhân viên và từ chối bản sao có cấu hình lương sai. Cả bốn tab đều được kiểm tra ở hai kích thước và hai theme.
 
-Sau khi Windows kh?a th? m?c g?c v? c? ch? ki?m tra t? ??ng ch?n l?nh di chuy?n/x?a, d? ?n ???c sao ch?p ??y ?? sang `D:\qu?n l? c?ng ty`; th? m?c `D:\Bot AI` ???c gi? nguy?n. B?n b?n giao v? c?c l?nh Git ch?y t?i th? m?c m?i. Kh?ng c? d? li?u nh?n s? th?t ???c xu?t b?n.
+Sau khi Windows khóa thư mục gốc và cơ chế kiểm tra tự động chặn lệnh di chuyển/xóa, dự án được sao chép đầy đủ sang `D:\quản lý công ty`; thư mục `D:\Bot AI` được giữ nguyên. Bản bàn giao và các lệnh Git chạy tại thư mục mới. Không có dữ liệu nhân sự thật được xuất bản.
